@@ -1,0 +1,23 @@
+{
+  "type": "module",
+  "name": "@digital-plant/db",
+  "version": "1.0.8",
+  "description": "",
+  "main": "index.mjs",
+  "scripts": {
+    "lint": "eslint .",
+    "co:login": "aws codeartifact login --tool npm --repository logging --domain digital-plant --namespace digital-plant --profile dp-dev",
+    "sso:login": "aws sso login --profile dp-dev",
+    "test": "node --test"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "pg": "^8.11.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.2.0",
+    "eslint": "^9.2.0",
+    "globals": "^15.1.0"
+  }
+}
