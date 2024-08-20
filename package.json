@@ -6,8 +6,8 @@
   "main": "index.mjs",
   "scripts": {
     "lint": "eslint .",
-    "co:login": "aws codeartifact login --tool npm --repository logging --domain digital-plant --namespace digital-plant --profile dp-dev",
-    "sso:login": "aws sso login --profile dp-dev",
+    "co:login": "aws codeartifact login --tool npm --repository mabulu --domain mabulu --domain-owner 059087497480 --region us-east-2 --profile es-dev",
+    "sso:login": "aws sso login --profile es-dev",
     "test": "node --test"
   },
   "author": "",
