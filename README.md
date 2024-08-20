@@ -1,6 +1,6 @@
 # db
 
-This library imports the Pool from pg and exports an instance with a connectionString from the DATBASE_URL environment variable. We use CodeArtifact as a private npm registry for the @digital-plant namespace.
+This library imports the Pool from pg and exports an instance with a connectionString from the DATBASE_URL environment variable. We use CodeArtifact as a private npm registry for the @mabulu namespace.
 
 `import '@mabulu/db'`
 
