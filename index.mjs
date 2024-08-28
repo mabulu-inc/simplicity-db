@@ -1,4 +1,11 @@
 import pg from 'pg';
 const { Pool } = pg;
-const db = new Pool({ connectionString: process.env.DATABASE_URL });
-export default db;
+
+const makePool = (prefix = '') => {
+  return new Pool({
+    connectionString: process.env[`${prefix ? `${prefix}_` : ''}DATABASE_URL`],
+  });
+};
+
+export { makePool };
+export default makePool();
