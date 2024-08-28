@@ -1,12 +1,12 @@
 {
   "type": "module",
   "name": "@mabulu-inc/db",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "simple postgresql pooled client",
   "main": "index.mjs",
   "scripts": {
     "lint": "eslint .",
-    "release": "standard-version && git push --follow-tags && npm publish",
+    "release": "npm run lint && standard-version && git push --follow-tags && npm publish",
     "test": "node --test"
   },
   "author": "",
