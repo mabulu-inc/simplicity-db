@@ -1,7 +1,7 @@
 {
   "type": "module",
   "name": "@mabulu-inc/db",
-  "version": "1.0.9",
+  "version": "1.1.0",
   "description": "simple postgresql pooled client",
   "main": "index.mjs",
   "scripts": {
