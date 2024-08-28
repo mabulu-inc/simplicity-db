@@ -1,8 +1,8 @@
 {
   "type": "module",
-  "name": "@mabulu/db",
+  "name": "@mabulu-inc/db",
   "version": "1.0.9",
-  "description": "",
+  "description": "simple postgresql pooled client",
   "main": "index.mjs",
   "scripts": {
     "lint": "eslint .",
@@ -11,6 +11,7 @@
     "test": "node --test"
   },
   "author": "",
+  "repository": "git@github.com:mabulu-inc/db.git",
   "license": "ISC",
   "dependencies": {
     "pg": "^8.11.5"
