@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.2.0](https://github.com/mabulu-inc/db/compare/v1.1.0...v1.2.0) (2024-08-28)
+
+
+### Features
+
+* lint during release ([b73bc71](https://github.com/mabulu-inc/db/commit/b73bc714476291f74d41299637b6442e8721dc54))
+
 ## 1.1.0 (2024-08-28)
 
 
