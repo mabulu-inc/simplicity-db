@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [1.3.0](https://github.com/mabulu-inc/db/compare/v1.2.0...v1.3.0) (2024-08-28)
+
+
+### Features
+
+* enable env var prefixing ([a97341b](https://github.com/mabulu-inc/db/commit/a97341b8edeaf33065a768a6db7a62c57d65baaa))
+
 ## [1.2.0](https://github.com/mabulu-inc/db/compare/v1.1.0...v1.2.0) (2024-08-28)
 
 
