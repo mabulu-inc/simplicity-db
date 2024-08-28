@@ -10,7 +10,10 @@
     "test": "node --test"
   },
   "author": "",
-  "repository": "git@github.com:mabulu-inc/db.git",
+  "repository": {
+    "type": "git",
+    "url": "git+ssh://git@github.com/mabulu-inc/db.git"
+  },
   "license": "ISC",
   "dependencies": {
     "pg": "^8.11.5"
