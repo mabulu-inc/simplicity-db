@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [1.3.1](https://github.com/mabulu-inc/db/compare/v1.3.0...v1.3.1) (2024-08-28)
+
+
+### Bug Fixes
+
+* npm pkg fix ([81b1860](https://github.com/mabulu-inc/db/commit/81b186073538a801f1bf6185bbb826f186a7b78a))
+
 ## [1.3.0](https://github.com/mabulu-inc/db/compare/v1.2.0...v1.3.0) (2024-08-28)
 
 
