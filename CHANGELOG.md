@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.0.2](https://github.com/mabulu-inc/db/compare/v2.0.1...v2.0.2) (2024-08-29)
+
+
+### Bug Fixes
+
+* does not supply default value to prefix ([5110b20](https://github.com/mabulu-inc/db/commit/5110b20bd372f0a595e7be8714a84c18ef8a09e5))
+
 ### [2.0.1](https://github.com/mabulu-inc/db/compare/v2.0.0...v2.0.1) (2024-08-29)
 
 
