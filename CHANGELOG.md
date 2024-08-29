@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.0.3](https://github.com/mabulu-inc/db/compare/v2.0.2...v2.0.3) (2024-08-29)
+
+
+### Bug Fixes
+
+* fallback to normal connect string ([fd1a15c](https://github.com/mabulu-inc/db/commit/fd1a15c600103014a263b885f58c22ca808e38fe))
+
 ### [2.0.2](https://github.com/mabulu-inc/db/compare/v2.0.1...v2.0.2) (2024-08-29)
 
 
