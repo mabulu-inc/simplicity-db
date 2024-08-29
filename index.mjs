@@ -3,7 +3,8 @@ const { Pool } = pg;
 
 const connect = (prefix) => {
   const connectionString =
-    process.env[`${prefix ? `${prefix}_` : ''}DATABASE_URL`];
+    process.env[`${prefix ? `${prefix}_` : ''}DATABASE_URL`] ||
+    process.env.DATABASE_URL;
 
   return new Pool({
     connectionString,
