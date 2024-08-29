@@ -6,7 +6,7 @@
   "main": "index.mjs",
   "scripts": {
     "lint": "eslint .",
-    "release": "npm run lint && standard-version && git push --follow-tags && npm publish",
+    "release": "npm i && npm run lint && npm run test && standard-version && git push --follow-tags && npm publish",
     "test": "node --test"
   },
   "author": "",
