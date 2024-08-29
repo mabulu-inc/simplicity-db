@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.0.1](https://github.com/mabulu-inc/db/compare/v2.0.0...v2.0.1) (2024-08-29)
+
+
+### Bug Fixes
+
+* uses npm test ([f6c7e00](https://github.com/mabulu-inc/db/commit/f6c7e0059ada60b8ba4cdeb1ce26b7213f8b5821))
+
 ## [2.0.0](https://github.com/mabulu-inc/db/compare/v1.3.1...v2.0.0) (2024-08-29)
 
 
