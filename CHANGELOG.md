@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+## [2.2.0](https://github.com/mabulu-inc/db/compare/v2.0.3...v2.2.0) (2025-03-17)
+
+
+### Features
+
+* update mutation ([6ee7f99](https://github.com/mabulu-inc/db/commit/6ee7f998d1451fb569c737c1604613ff7ce0069b))
+
 ### [2.0.3](https://github.com/mabulu-inc/db/compare/v2.0.2...v2.0.3) (2024-08-29)
 
 

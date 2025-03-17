@@ -1,6 +1,6 @@
 import pg from 'pg';
 import updateMutation from './src/update-mutation.mjs';
-import { friendlyError } from '../src/friendly-error.mjs';
+import { friendlyError } from './src/friendly-error.mjs';
 const { Pool } = pg;
 
 const connect = (prefix) => {
