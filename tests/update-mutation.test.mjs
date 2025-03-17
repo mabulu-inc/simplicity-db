@@ -18,7 +18,7 @@ update test_table o
 set
   name = n.name,
   updated_at = current_timestamp
-from jsonb_to_recordset($1) as n(
+from jsonb_to_record($1) as n(
   id int,
   sub_id int,
   name varchar
@@ -47,7 +47,7 @@ update test_table o
 set
   name = n.name,
   updated = current_timestamp
-from jsonb_to_recordset($1) as n(
+from jsonb_to_record($1) as n(
   id int,
   name varchar
 ) where
