@@ -1,4 +1,4 @@
-export const PG_ERROR_CODES = {
+export const ERROR_CODES = {
   UNIQUE_VIOLATION: '23505',
   FOREIGN_KEY_VIOLATION: '23503',
   NOT_NULL_VIOLATION: '23502',
@@ -31,7 +31,7 @@ export function formatTableColumnInfo(table, column) {
   return { tableInfo, columnInfo };
 }
 
-export function getFriendlyPgErrorMessage(error) {
+export function friendlyError(error) {
   if (!error || !error.code) {
     return MESSAGES.DEFAULT;
   }
@@ -39,7 +39,7 @@ export function getFriendlyPgErrorMessage(error) {
   const { code, table, column, detail } = error;
   const { tableInfo, columnInfo } = formatTableColumnInfo(table, column);
 
-  if (code === PG_ERROR_CODES.FOREIGN_KEY_VIOLATION) {
+  if (code === ERROR_CODES.FOREIGN_KEY_VIOLATION) {
     if (detail?.includes('is not present in table')) {
       return MESSAGES.FOREIGN_KEY_VIOLATION_MISSING_PARENT(tableInfo);
     } else if (detail?.includes('is still referenced from table')) {
@@ -49,17 +49,17 @@ export function getFriendlyPgErrorMessage(error) {
   }
 
   const errorMessages = {
-    [PG_ERROR_CODES.UNIQUE_VIOLATION]: MESSAGES.UNIQUE_VIOLATION(
+    [ERROR_CODES.UNIQUE_VIOLATION]: MESSAGES.UNIQUE_VIOLATION(
       tableInfo,
       columnInfo
     ),
-    [PG_ERROR_CODES.NOT_NULL_VIOLATION]: MESSAGES.NOT_NULL_VIOLATION(
+    [ERROR_CODES.NOT_NULL_VIOLATION]: MESSAGES.NOT_NULL_VIOLATION(
       tableInfo,
       columnInfo
     ),
-    [PG_ERROR_CODES.STRING_DATA_RIGHT_TRUNCATION]:
+    [ERROR_CODES.STRING_DATA_RIGHT_TRUNCATION]:
       MESSAGES.STRING_DATA_RIGHT_TRUNCATION(tableInfo, columnInfo),
-    [PG_ERROR_CODES.UNDEFINED_COLUMN]: MESSAGES.UNDEFINED_COLUMN(
+    [ERROR_CODES.UNDEFINED_COLUMN]: MESSAGES.UNDEFINED_COLUMN(
       tableInfo,
       columnInfo
     ),
