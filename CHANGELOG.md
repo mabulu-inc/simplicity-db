@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
 
+### [2.2.2](https://github.com/mabulu-inc/db/compare/v2.2.0...v2.2.2) (2025-03-17)
+
+
+### Bug Fixes
+
+* module path for friendlyError ([5d380a2](https://github.com/mabulu-inc/db/commit/5d380a2f4444274e53c54a1a6f81560203c29914))
+
 ## [2.2.0](https://github.com/mabulu-inc/db/compare/v2.0.3...v2.2.0) (2025-03-17)
 
 

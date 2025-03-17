@@ -8,7 +8,7 @@ set${fieldset
   )
   .join(',')},
   ${updated || 'updated_at'} = current_timestamp
-from jsonb_to_recordset($1) as n(${fieldset
+from jsonb_to_record($1) as n(${fieldset
   .map(
     ([field, type]) => `
   ${field} ${type}`
