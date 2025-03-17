@@ -1,4 +1,5 @@
 import pg from 'pg';
+import { friendlyError } from '../src/friendly-error.js';
 const { Pool } = pg;
 
 const connect = (prefix) => {
@@ -11,4 +12,5 @@ const connect = (prefix) => {
   });
 };
 
+export { friendlyError };
 export default connect;
