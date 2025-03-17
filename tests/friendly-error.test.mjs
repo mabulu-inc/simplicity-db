@@ -1,6 +1,10 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert';
-import { friendlyError, MESSAGES, ERROR_CODES } from '../src/friendly-error.js';
+import {
+  friendlyError,
+  MESSAGES,
+  ERROR_CODES,
+} from '../src/friendly-error.mjs';
 
 describe('friendlyError', () => {
   it('returns default message if no error object is provided', () => {

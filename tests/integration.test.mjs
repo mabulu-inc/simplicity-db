@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import pg from 'pg';
 const { Client } = pg;
 
-import { friendlyError } from '../src/friendly-error.js';
+import { friendlyError } from '../src/friendly-error.mjs';
 
 let client;
 
