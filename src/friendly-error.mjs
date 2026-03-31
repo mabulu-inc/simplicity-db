@@ -1,6 +1,7 @@
 export const ERROR_CODES = {
   UNIQUE_VIOLATION: '23505',
   FOREIGN_KEY_VIOLATION: '23503',
+  RESTRICT_VIOLATION: '23001',
   NOT_NULL_VIOLATION: '23502',
   STRING_DATA_RIGHT_TRUNCATION: '22001',
   UNDEFINED_COLUMN: '42703',
@@ -39,10 +40,13 @@ export function friendlyError(error) {
   const { code, table, column, detail } = error;
   const { tableInfo, columnInfo } = formatTableColumnInfo(table, column);
 
-  if (code === ERROR_CODES.FOREIGN_KEY_VIOLATION) {
+  if (
+    code === ERROR_CODES.FOREIGN_KEY_VIOLATION ||
+    code === ERROR_CODES.RESTRICT_VIOLATION
+  ) {
     if (detail?.includes('is not present in table')) {
       return MESSAGES.FOREIGN_KEY_VIOLATION_MISSING_PARENT(tableInfo);
-    } else if (detail?.includes('is still referenced from table')) {
+    } else if (detail?.includes('referenced from table')) {
       return MESSAGES.FOREIGN_KEY_VIOLATION_REFERENCED(tableInfo);
     }
     return MESSAGES.FOREIGN_KEY_VIOLATION_GENERIC(tableInfo);
