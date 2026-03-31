@@ -24,7 +24,7 @@ describe('withClient', () => {
   });
 
   it('returns the callback result', async () => {
-    const result = await withClient(pool, async (client) => {
+    const result = await withClient(pool, async () => {
       return 'hello';
     });
     assert.equal(result, 'hello');
@@ -68,7 +68,7 @@ describe('withClient', () => {
       await client.query("SET SESSION app.test_var = 'first_call'");
     });
     await withClient(pool, async (client) => {
-      const { rows } = await client.query("SELECT current_setting('app.test_var', true) as val");
+      await client.query("SELECT current_setting('app.test_var', true) as val");
       // May or may not see 'first_call' depending on which connection we get.
       // The point is withClient doesn't guarantee isolation between calls,
       // only that queries WITHIN a single call share a connection.
