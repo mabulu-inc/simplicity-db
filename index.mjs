@@ -13,5 +13,19 @@ const connect = (prefix) => {
   });
 };
 
-export { friendlyError, updateMutation };
+/**
+ * Check out a single connection from the pool, run the callback, then release.
+ * All queries inside `fn` run on the SAME connection, so session variables
+ * and RLS context work correctly.
+ */
+const withClient = async (pool, fn) => {
+  const client = await pool.connect();
+  try {
+    return await fn(client);
+  } finally {
+    client.release();
+  }
+};
+
+export { friendlyError, updateMutation, withClient };
 export default connect;
