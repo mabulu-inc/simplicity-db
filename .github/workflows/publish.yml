@@ -4,6 +4,7 @@ on:
       - '*'
 
 permissions:
+  contents: read
   packages: write
 
 name: publish
