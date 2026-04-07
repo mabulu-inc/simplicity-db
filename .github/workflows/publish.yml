@@ -1,28 +1,32 @@
+name: Publish to npm
+
 on:
-  push:
-    tags:
-      - '*'
+  release:
+    types: [published]
 
 permissions:
   contents: read
-  packages: write
-
-name: publish
+  id-token: write
 
 jobs:
   publish:
     runs-on: ubuntu-latest
+    environment: npm
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - name: Set up Node.js
-        uses: actions/setup-node@v4
+      - uses: pnpm/action-setup@v5
         with:
-          node-version: '22'
-          registry-url: https://npm.pkg.github.com/
+          version: latest
 
-      - name: Publish to GitHub Packages
-        run: npm publish
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: pnpm
+          registry-url: https://registry.npmjs.org
+
+      - run: pnpm install --frozen-lockfile
+
+      - run: pnpm test
+
+      - run: npm publish --provenance --access public
