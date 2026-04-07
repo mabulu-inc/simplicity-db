@@ -1,72 +1,63 @@
 import 'dotenv/config';
 import { before, after, describe, it } from 'node:test';
 import assert from 'node:assert/strict';
-import pg from 'pg';
-const { Client } = pg;
+import connect from '../index.mjs';
 
 import { friendlyError } from '../src/friendly-error.mjs';
 
+// Isolate this suite in its own schema so it can safely run against a shared
+// dev database without colliding with other tests or real tables. The schema
+// name is randomised per run and dropped in `after`.
+const schema = `test_friendly_error_${Math.random().toString(36).slice(2, 10)}`;
+
+let pool;
 let client;
 
 describe('friendlyError Integration', () => {
   before(async () => {
-    client = new Client({
-      connectionString: process.env.TEST_DATABASE_URL,
-    });
-    await client.connect();
+    pool = connect('TEST');
+    client = await pool.connect();
+
+    await client.query(`CREATE SCHEMA ${schema}`);
+    await client.query(`SET search_path TO ${schema}`);
 
     await client.query(`
-    DROP TABLE IF EXISTS test_users_integration;
-    CREATE TABLE test_users_integration (
-      id SERIAL PRIMARY KEY,
-      email TEXT UNIQUE NOT NULL
-    );
-  `);
+      CREATE TABLE users (
+        id SERIAL PRIMARY KEY,
+        email TEXT UNIQUE NOT NULL
+      );
 
-    await client.query(`
-    DROP TABLE IF EXISTS test_children;
-    DROP TABLE IF EXISTS test_parents;
+      CREATE TABLE parents (
+        id SERIAL PRIMARY KEY,
+        parent_data TEXT NOT NULL
+      );
 
-    CREATE TABLE test_parents (
-      id SERIAL PRIMARY KEY,
-      parent_data TEXT NOT NULL
-    );
+      CREATE TABLE children (
+        id SERIAL PRIMARY KEY,
+        parent_id INT NOT NULL,
+        child_data TEXT NOT NULL,
+        CONSTRAINT fk_parent
+          FOREIGN KEY (parent_id)
+          REFERENCES parents (id)
+          ON DELETE RESTRICT
+      );
 
-    CREATE TABLE test_children (
-      id SERIAL PRIMARY KEY,
-      parent_id INT NOT NULL,
-      child_data TEXT NOT NULL,
-      CONSTRAINT fk_parent
-        FOREIGN KEY (parent_id)
-        REFERENCES test_parents (id)
-        ON DELETE RESTRICT
-    );
-  `);
+      CREATE TABLE not_null (
+        id SERIAL PRIMARY KEY,
+        required_field TEXT NOT NULL
+      );
 
-    await client.query(`
-    DROP TABLE IF EXISTS test_not_null;
-    CREATE TABLE test_not_null (
-      id SERIAL PRIMARY KEY,
-      required_field TEXT NOT NULL
-    );
-  `);
-
-    await client.query(`
-    DROP TABLE IF EXISTS test_truncation;
-    CREATE TABLE test_truncation (
-      id SERIAL PRIMARY KEY,
-      short_text VARCHAR(5)
-    );
-  `);
+      CREATE TABLE truncation (
+        id SERIAL PRIMARY KEY,
+        short_text VARCHAR(5)
+      );
+    `);
   });
 
   after(async () => {
-    await client.query('DROP TABLE IF EXISTS test_truncation;');
-    await client.query('DROP TABLE IF EXISTS test_not_null;');
-    await client.query('DROP TABLE IF EXISTS test_children;');
-    await client.query('DROP TABLE IF EXISTS test_parents;');
-    await client.query('DROP TABLE IF EXISTS test_users_integration;');
-    await client.end();
+    await client.query(`DROP SCHEMA ${schema} CASCADE`);
+    client.release();
+    await pool.end();
   });
 
   // ─────────────────────────────────────────────────────────────────────────────
@@ -75,18 +66,10 @@ describe('friendlyError Integration', () => {
   it('handles UNIQUE_VIOLATION', async () => {
     const emailValue = 'duplicate_test@example.com';
 
-    // Insert the first row (should succeed)
-    await client.query(
-      'INSERT INTO test_users_integration (email) VALUES ($1)',
-      [emailValue]
-    );
+    await client.query('INSERT INTO users (email) VALUES ($1)', [emailValue]);
 
-    // Insert the second row with the same email => triggers UNIQUE constraint error
     try {
-      await client.query(
-        'INSERT INTO test_users_integration (email) VALUES ($1)',
-        [emailValue]
-      );
+      await client.query('INSERT INTO users (email) VALUES ($1)', [emailValue]);
       assert.fail('Expected UNIQUE constraint violation, but query succeeded.');
     } catch (error) {
       const friendlyMessage = friendlyError(error);
@@ -103,14 +86,11 @@ describe('friendlyError Integration', () => {
   // ─────────────────────────────────────────────────────────────────────────────
   describe('handles FOREIGN_KEY_VIOLATION', () => {
     it('Missing parent record', async () => {
-      // Try inserting into test_children referencing a non-existent parent.
-      const missingParentId = 999999; // Some ID that won't exist
+      const missingParentId = 999999;
       try {
         await client.query(
-          `
-        INSERT INTO test_children (parent_id, child_data)
-        VALUES ($1, 'child referencing missing parent');
-      `,
+          `INSERT INTO children (parent_id, child_data)
+           VALUES ($1, 'child referencing missing parent')`,
           [missingParentId]
         );
 
@@ -128,33 +108,19 @@ describe('friendlyError Integration', () => {
     });
 
     it('Still referenced parent record', async () => {
-      // 1) Insert parent
-      const { rows } = await client.query(`
-      INSERT INTO test_parents (parent_data)
-      VALUES ('parent row')
-      RETURNING id;
-    `);
+      const { rows } = await client.query(
+        `INSERT INTO parents (parent_data) VALUES ('parent row') RETURNING id`
+      );
       const parentId = rows[0].id;
 
-      // 2) Insert child referencing that parent
       await client.query(
-        `
-      INSERT INTO test_children (parent_id, child_data)
-      VALUES ($1, 'child referencing existing parent');
-    `,
+        `INSERT INTO children (parent_id, child_data)
+         VALUES ($1, 'child referencing existing parent')`,
         [parentId]
       );
 
-      // 3) Attempt to delete the parent => triggers "still referenced" violation
       try {
-        await client.query(
-          `
-        DELETE FROM test_parents
-        WHERE id = $1;
-      `,
-          [parentId]
-        );
-
+        await client.query('DELETE FROM parents WHERE id = $1', [parentId]);
         assert.fail(
           'Expected foreign key violation for a referenced parent, but succeeded.'
         );
@@ -174,15 +140,9 @@ describe('friendlyError Integration', () => {
   // ─────────────────────────────────────────────────────────────────────────────
   it('handles NOT_NULL_VIOLATION', async () => {
     try {
-      // Insert a NULL into the "required_field" column (which is NOT NULL).
-      await client.query(
-        `
-      INSERT INTO test_not_null (required_field)
-      VALUES ($1);
-    `,
-        [null]
-      );
-
+      await client.query('INSERT INTO not_null (required_field) VALUES ($1)', [
+        null,
+      ]);
       assert.fail('Expected NOT NULL violation, but query succeeded.');
     } catch (error) {
       const friendlyMessage = friendlyError(error);
@@ -198,18 +158,12 @@ describe('friendlyError Integration', () => {
   // 4) STRING_DATA_RIGHT_TRUNCATION
   // ─────────────────────────────────────────────────────────────────────────────
   it('handles STRING_DATA_RIGHT_TRUNCATION', async () => {
-    // Insert text longer than 5 chars into "short_text VARCHAR(5)"
-    const tooLongString = 'abcdefg'; // 7 chars
+    const tooLongString = 'abcdefg';
 
     try {
-      await client.query(
-        `
-      INSERT INTO test_truncation (short_text)
-      VALUES ($1);
-    `,
-        [tooLongString]
-      );
-
+      await client.query('INSERT INTO truncation (short_text) VALUES ($1)', [
+        tooLongString,
+      ]);
       assert.fail(
         'Expected string data right truncation violation, but query succeeded.'
       );
@@ -227,13 +181,10 @@ describe('friendlyError Integration', () => {
   // 5) UNDEFINED_COLUMN
   // ─────────────────────────────────────────────────────────────────────────────
   it('handles UNDEFINED_COLUMN', async () => {
-    // Attempt to insert into a non-existent column "non_existent_column"
     try {
-      await client.query(`
-      INSERT INTO test_not_null (non_existent_column)
-      VALUES ('some_value');
-    `);
-
+      await client.query(
+        `INSERT INTO not_null (non_existent_column) VALUES ('some_value')`
+      );
       assert.fail('Expected undefined column violation, but query succeeded.');
     } catch (error) {
       const friendlyMessage = friendlyError(error);
