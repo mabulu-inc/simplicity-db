@@ -1,28 +1,28 @@
 # yaml-language-server: $schema=https://json.schemastore.org/github-workflow.json
-name: Publish to npm
+name: CI
 
 on:
-  release:
-    types: [published]
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
 
 permissions:
   contents: read
-  id-token: write
 
 concurrency:
-  group: publish
-  cancel-in-progress: false
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  publish:
-    name: Test, build, and publish to npm
+  check:
+    name: Lint, type-check, gitleaks, test, build
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    environment: npm
+    timeout-minutes: 10
 
     services:
       postgres:
-        image: postgres:16-alpine
+        image: postgres:latest
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -31,17 +31,18 @@ jobs:
           - 5432:5432
         options: >-
           --health-cmd "pg_isready -U postgres"
-          --health-interval 2s
+          --health-interval 10s
           --health-timeout 5s
-          --health-retries 10
+          --health-retries 5
 
     env:
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
 
     steps:
-      - name: Check out code at the release tag
+      - name: Check out code
         uses: actions/checkout@v6
         with:
+          # gitleaks needs the full git history.
           fetch-depth: 0
 
       - name: Set up pnpm
@@ -54,10 +55,15 @@ jobs:
         with:
           node-version: 24
           cache: pnpm
-          registry-url: https://registry.npmjs.org
 
       - name: Install dependencies (frozen lockfile)
         run: pnpm install --frozen-lockfile
+
+      - name: Lint
+        run: pnpm run lint
+
+      - name: Type-check
+        run: pnpm run typecheck
 
       - name: Install gitleaks
         env:
@@ -71,26 +77,25 @@ jobs:
       - name: Run gitleaks (full git history)
         run: gitleaks git . --no-banner --redact
 
-      - name: Verify release tag matches package.json version
-        run: |
-          TAG="${GITHUB_REF##refs/tags/v}"
-          PKG=$(node -p "require('./package.json').version")
-          if [ "$TAG" != "$PKG" ]; then
-            echo "::error::Release tag v$TAG does not match package.json version $PKG"
-            exit 1
-          fi
-
-      - name: Lint
-        run: pnpm run lint
-
-      - name: Type-check
-        run: pnpm run typecheck
-
-      - name: Run tests against Postgres service
+      - name: Run tests
         run: pnpm test
 
       - name: Build distribution
         run: pnpm run build
 
-      - name: Publish to npm with provenance
-        run: npm publish --provenance --access public
+      # Advisory: warn (don't fail) when a direct dep has a newer
+      # release on npm than what's installed. Catches "typescript-eslint
+      # 9 just dropped" before we discover it at upgrade time. Runs
+      # last because it's the lowest-priority check — actual test or
+      # build failures should surface first.
+      - name: Check for outdated direct dependencies (non-blocking)
+        run: |
+          set +e
+          OUTPUT=$(pnpm outdated --long 2>&1)
+          STATUS=$?
+          if [ $STATUS -ne 0 ]; then
+            echo "::warning title=Outdated dependencies::One or more direct dependencies have newer releases on npm. Run 'pnpm outdated --long' locally to see the diff and 'pnpm up --latest' to upgrade."
+            echo "$OUTPUT"
+          else
+            echo "All direct dependencies on latest."
+          fi

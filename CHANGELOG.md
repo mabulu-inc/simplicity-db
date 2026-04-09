@@ -1,6 +1,63 @@
 # Changelog
 
-All notable changes to this project will be documented in this file. See [standard-version](https://github.com/conventional-changelog/standard-version) for commit guidelines.
+All notable changes to this project will be documented in this file.
+
+## 3.0.0 (2026-04-09)
+
+TypeScript port of v2.x. **No API changes** — same default
+`connect` export, same named `withClient`, `updateMutation`, and
+`friendlyError`. `@smplcty/db` stays a thin `pg` helper that knows
+nothing about sessions or RLS; session/role GUC setup lives in
+`@smplcty/auth` via `withSession`. Consumers upgrade by swapping
+`@mabulu-inc/db` → `@smplcty/db`. Major version bump because the
+package is republished under a new name, drops `dotenv`, makes
+`pg` a peer dependency, and ships type declarations.
+
+### What changed
+
+- **Source is now TypeScript** (`src/*.ts`), compiled to `dist/` via
+  `tsc`. Type declarations ship in the package — no more
+  `// @ts-expect-error` at the consumer's import site.
+- **`pg` is now a peer dependency** (was a direct dep). Install
+  `pg` in the consuming service; `@smplcty/db` will use whichever
+  version the consumer picks.
+- **No more `dotenv`**. Load `.env` at the edge of your application
+  (e.g., via `node --env-file=.env`), not inside a library.
+- **Tests migrated to vitest**. Unit tests for `updateMutation` and
+  `friendlyError` plus integration tests against a real Postgres
+  (docker-compose locally, service container in CI) for
+  `withClient` and `friendlyError` round-tripping real pg error
+  codes.
+- **`withClient` is now generically typed** — `withClient<T>(pool,
+  fn)` infers `T` from the callback's return type.
+- **`updateMutation` exports a `FieldSpec` tuple type** so
+  consumers get type-checked fieldsets.
+- **`friendlyError` exports `PgErrorLike`, `ERROR_CODES`, and
+  `MESSAGES`** so consumers can extend or override the mapping.
+- **CI workflow added** (`.github/workflows/ci.yml`): lint,
+  typecheck, gitleaks scan of full git history, build, tests
+  against a Postgres service container, plus a non-blocking
+  `pnpm outdated` advisory.
+- **Publish workflow rewritten** (`.github/workflows/publish.yml`):
+  OIDC trusted publishing with provenance, tag-vs-package version
+  check, gitleaks scan, and the same lint/typecheck/test/build
+  chain as CI.
+- **Action versions bumped** to the fleet baseline: `actions/checkout@v6`,
+  `pnpm/action-setup@v5`, `actions/setup-node@v6`, node 24.
+
+### Migration from `@mabulu-inc/db` v2.x
+
+1. `pnpm remove @mabulu-inc/db && pnpm add @smplcty/db`
+2. Ensure `pg` is a direct dependency of your service (it was
+   previously transitive via `@mabulu-inc/db`).
+3. If you were relying on the package to load `.env` for you,
+   switch to `node --env-file=.env` or load `dotenv` explicitly at
+   your application's entry point.
+4. Update imports from `@mabulu-inc/db` to `@smplcty/db`.
+
+---
+
+## Pre-3.0 history
 
 ### [2.3.1](https://github.com/mabulu-inc/db/compare/v2.2.4...v2.3.1) (2026-03-31)
 

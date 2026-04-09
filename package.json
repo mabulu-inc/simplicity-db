@@ -1,29 +1,66 @@
 {
-  "type": "module",
   "name": "@smplcty/db",
-  "version": "2.4.3",
-  "description": "simple postgresql pooled client",
-  "main": "index.mjs",
-  "scripts": {
-    "lint": "eslint .",
-    "test": "node --test",
-    "release:patch": "pnpm version patch && git push && git push --tags && gh release create v$(node -p \"require('./package.json').version\") --generate-notes",
-    "release:minor": "pnpm version minor && git push && git push --tags && gh release create v$(node -p \"require('./package.json').version\") --generate-notes",
-    "release:major": "pnpm version major && git push && git push --tags && gh release create v$(node -p \"require('./package.json').version\") --generate-notes"
+  "version": "3.0.0",
+  "description": "Tiny TypeScript helpers for pg: env-driven Pool factory, withClient checkout-run-release wrapper, parameterized UPDATE statement generator, and friendly error messages for common pg constraint codes.",
+  "license": "MIT",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
   },
-  "author": "",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "CHANGELOG.md"
+  ],
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "repository": {
     "type": "git",
-    "url": "https://github.com/mabulu-inc/simplicity-db.git"
+    "url": "git+https://github.com/mabulu-inc/simplicity-db.git"
   },
-  "license": "MIT",
-  "dependencies": {
-    "dotenv": "^17.3.1",
-    "pg": "^8.20.0"
+  "homepage": "https://github.com/mabulu-inc/simplicity-db#readme",
+  "bugs": {
+    "url": "https://github.com/mabulu-inc/simplicity-db/issues"
+  },
+  "keywords": [
+    "postgres",
+    "postgresql",
+    "pg",
+    "pool",
+    "with-client",
+    "friendly-error"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist",
+    "lint": "eslint src tests",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "peerDependencies": {
+    "pg": ">=8.0.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "eslint": "^10.1.0",
-    "globals": "^17.4.0"
+    "@types/node": "^25.5.2",
+    "@types/pg": "^8.20.0",
+    "eslint": "^10.2.0",
+    "pg": "^8.20.0",
+    "typescript": "^6.0.2",
+    "typescript-eslint": "^8.58.1",
+    "vitest": "^4.1.4"
   }
 }
