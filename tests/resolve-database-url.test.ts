@@ -35,25 +35,49 @@ describe('resolveDatabaseUrl', () => {
     );
   });
 
-  it('defaults the port to 5432 and the database to postgres', () => {
+  it('defaults the port to 5432 (but not the database)', () => {
+    delete process.env['DATABASE_URL'];
+    process.env['DB_SECRET'] = JSON.stringify({
+      host: 'h',
+      dbname: 'app',
+      username: 'u',
+      password: 'p',
+    });
+    expect(resolveDatabaseUrl()).toBe('postgresql://u:p@h:5432/app');
+  });
+
+  it('uses opts.dbname when the secret omits dbname', () => {
     delete process.env['DATABASE_URL'];
     process.env['DB_SECRET'] = JSON.stringify({
       host: 'h',
       username: 'u',
       password: 'p',
     });
-    expect(resolveDatabaseUrl()).toBe('postgresql://u:p@h:5432/postgres');
+    expect(
+      resolveDatabaseUrl('DATABASE_URL', 'DB_SECRET', { dbname: 'salez1' }),
+    ).toBe('postgresql://u:p@h:5432/salez1');
+  });
+
+  it('throws when dbname is in neither the secret nor opts (no silent fallback)', () => {
+    delete process.env['DATABASE_URL'];
+    process.env['DB_SECRET'] = JSON.stringify({
+      host: 'h',
+      username: 'u',
+      password: 'p',
+    });
+    expect(() => resolveDatabaseUrl()).toThrow(/dbname/);
   });
 
   it('percent-encodes reserved characters in the username and password', () => {
     delete process.env['DATABASE_URL'];
     process.env['DB_SECRET'] = JSON.stringify({
       host: 'h',
+      dbname: 'app',
       username: 'a b',
       password: 'p@ss:w/rd?',
     });
     expect(resolveDatabaseUrl()).toBe(
-      'postgresql://a%20b:p%40ss%3Aw%2Frd%3F@h:5432/postgres',
+      'postgresql://a%20b:p%40ss%3Aw%2Frd%3F@h:5432/app',
     );
   });
 

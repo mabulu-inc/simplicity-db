@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Changed
+
+- **`resolveDatabaseUrl` no longer silently defaults the database name to
+  `postgres`.** A wrong database name connects you somewhere you didn't
+  mean to, so `dbname` must now come from the secret JSON or a new
+  explicit `opts.dbname` (`resolveDatabaseUrl(urlVar, secretVar, { dbname })`);
+  if neither is present it throws. The URL-var path and the `5432` port
+  default are unchanged. (The function had no consumers, so this removes a
+  footgun rather than breaking anything.)
+
 ## 4.1.0 (2026-06-08)
 
 ### Added

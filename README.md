@@ -44,7 +44,7 @@ If `${PREFIX}_DATABASE_URL` is unset, it falls through to
 `resolveDatabaseUrl`). No `.env` loading — do that at the edge of
 your application.
 
-### `resolveDatabaseUrl(urlVar?, secretVar?)` — URL or secret JSON
+### `resolveDatabaseUrl(urlVar?, secretVar?, opts?)` — URL or secret JSON
 
 Returns the connection string from `${urlVar}` if set, otherwise
 parses `${secretVar}` as a Secrets-Manager-style JSON
@@ -52,11 +52,16 @@ parses `${secretVar}` as a Secrets-Manager-style JSON
 the credentials. It reads an env string already present in the
 process — it does **not** call AWS.
 
+The port defaults to `5432`, but there is **no default database name**
+— a wrong one connects you somewhere you didn't mean to. `dbname` must
+come from the secret or `opts.dbname`, else it throws.
+
 ```ts
 import connect, { resolveDatabaseUrl } from '@smplcty/db';
 
 const pool = connect(undefined, {
-  connectionString: resolveDatabaseUrl('DATABASE_URL', 'DB_SECRET'),
+  // dbname from the secret JSON, or pass a fixed one:
+  connectionString: resolveDatabaseUrl('DATABASE_URL', 'DB_SECRET', { dbname: 'salez1' }),
   statement_timeout: 30_000,
 });
 ```
