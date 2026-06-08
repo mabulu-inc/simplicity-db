@@ -125,6 +125,9 @@ argument also accepts an options object:
 - `{ updated: false }` — write no timestamp (table has none).
 - `{ bulk: true }` — read `$1` as a `jsonb_to_recordset` so one
   statement updates many rows.
+- `{ scalars: { plant_id: { type: 'int', key: true } } }` — constant
+  bind params applied to every row (a partition key). The recordset is
+  `$1`; scalars follow in declared order as `$2…$N`.
 
 ### `upsertMutation(table, fieldset, options?)` — UPDATE + INSERT
 
@@ -149,28 +152,59 @@ await client.query(insert, [rows]);
 ```
 
 Per-field `valueExpr`s (the 4th tuple slot) apply to both halves —
-handy for FK-resolving subselects or `lower(n.email)`.
-
-### `friendlyError(err)` / `classifyPgError(err)` — readable errors
-
-`friendlyError` maps common `pg` codes (unique, foreign key,
-not-null, truncation, connection failure, …) to a user-facing
-string. `classifyPgError` returns `{ code, httpStatus, message }`
-with the same message plus a suggested status (409 / 400 / 503 /
-500):
+handy for FK-resolving subselects or `lower(n.email)`. For a partition
+key that's constant per batch (e.g. `plant_id`), use `scalars` instead
+of repeating it in every row:
 
 ```ts
-import { friendlyError, classifyPgError } from '@smplcty/db';
+const { update, insert } = upsertMutation('tares', [
+  ['source_id', 'text', true],
+  ['weight',    'numeric'],
+], { bulk: true, scalars: { plant_id: { type: 'int', key: true } } });
+
+await client.query(update, [rows, plantId]); // $1 = rows, $2 = plantId
+await client.query(insert, [rows, plantId]);
+```
+
+### `classifyPgError(err)` — structured error classification
+
+Returns a **copy-free** `{ code, category, httpStatus, constraint?,
+table?, column? }`. Pick the status from `httpStatus`/`category`, then
+supply your **own** user-facing message — the library deliberately bakes
+in no copy, so nothing leaks unless you choose to surface it:
+
+```ts
+import { classifyPgError } from '@smplcty/db';
 
 try {
   await client.query('insert into users (email) values ($1)', [dupe]);
 } catch (err) {
-  const { httpStatus, message } = classifyPgError(err);
-  reply.code(httpStatus).send({ message });
+  const { httpStatus, category, constraint } = classifyPgError(err);
+  reply.code(httpStatus).send({ message: messageFor(category, constraint) });
 }
 ```
 
-Unknown codes return a generic message and HTTP 500.
+`category` is one of `unique_violation`, `foreign_key_violation`,
+`not_null_violation`, `string_truncation`, `connection`, or `unknown`
+(→ 409 / 400 / 400 / 400 / 503 / 500).
+
+### `friendlyError(err)` — readable message **for logs only**
+
+Maps common `pg` codes to a short string. ⚠️ The message embeds the
+`table`/`column` names, so it is **for logs/diagnostics only — never
+return it to clients** (that leaks your schema). Use `classifyPgError`
+for responses.
+
+```ts
+import { friendlyError } from '@smplcty/db';
+
+try {
+  await client.query('insert into users (email) values ($1)', [dupe]);
+} catch (err) {
+  logger.warn({ err }, friendlyError(err)); // logs, not responses
+  throw err;
+}
+```
 
 ## Development
 

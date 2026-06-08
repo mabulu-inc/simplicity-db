@@ -97,3 +97,67 @@ describe('upsertMutation — round trip against real Postgres', () => {
     expect(after.rows[1]?.updated_at).toEqual(before.rows[1]?.updated_at);
   });
 });
+
+const PART_TABLE = `${SCHEMA}.scoped_widgets`;
+const scoped = upsertMutation(
+  PART_TABLE,
+  [
+    ['source_id', 'text', true],
+    ['val', 'numeric'],
+  ],
+  { bulk: true, scalars: { plant_id: { type: 'int', key: true } } },
+);
+
+describe('upsertMutation — scalar partition key', () => {
+  beforeAll(async () => {
+    await pool.query(`
+      CREATE TABLE ${PART_TABLE} (
+        plant_id   int  not null,
+        source_id  text not null,
+        val        numeric,
+        updated_at timestamptz not null default now(),
+        primary key (plant_id, source_id)
+      )
+    `);
+  });
+
+  beforeEach(async () => {
+    await pool.query(`TRUNCATE ${PART_TABLE}`);
+  });
+
+  it('scopes inserts and updates to the partition-key bind param', async () => {
+    const rows = JSON.stringify([
+      { source_id: 's1', val: 10 },
+      { source_id: 's2', val: 20 },
+    ]);
+
+    await pool.query(scoped.update, [rows, 1]); // nothing yet
+    expect((await pool.query(scoped.insert, [rows, 1])).rowCount).toBe(2);
+
+    // Same source_ids under a different plant must NOT collide.
+    expect((await pool.query(scoped.insert, [rows, 2])).rowCount).toBe(2);
+
+    const all = await pool.query(
+      `SELECT plant_id, source_id, val FROM ${PART_TABLE} ORDER BY plant_id, source_id`,
+    );
+    expect(all.rows).toEqual([
+      { plant_id: 1, source_id: 's1', val: '10' },
+      { plant_id: 1, source_id: 's2', val: '20' },
+      { plant_id: 2, source_id: 's1', val: '10' },
+      { plant_id: 2, source_id: 's2', val: '20' },
+    ]);
+
+    // Change only plant 1 / s1; plant 2 must be untouched.
+    const changed = JSON.stringify([
+      { source_id: 's1', val: 99 },
+      { source_id: 's2', val: 20 },
+    ]);
+    const upd = await pool.query(scoped.update, [changed, 1]);
+    expect(upd.rowCount).toBe(1);
+
+    const p2 = await pool.query(
+      `SELECT val FROM ${PART_TABLE} WHERE plant_id = 2 AND source_id = 's1'`,
+    );
+    expect(p2.rows[0]?.val).toBe('10');
+  });
+});

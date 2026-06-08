@@ -23,6 +23,21 @@ export type FieldSpec = readonly [
 ];
 
 /**
+ * A constant value applied to every row — typically a partition key such
+ * as `tenant_id`/`plant_id` that is constant for a whole batch and sourced
+ * from a bind param rather than repeated in every record.
+ */
+export interface ScalarSpec {
+  /** Optional cast applied to the bind param, e.g. `'int'` → `$2::int`. */
+  type?: string;
+  /**
+   * When `true`, the scalar is matched in the WHERE / WHERE NOT EXISTS
+   * (treated as a key) instead of being written in the SET clause.
+   */
+  key?: boolean;
+}
+
+/**
  * Options shared by {@link updateMutation} and {@link upsertMutation}.
  *
  * - `updated` — name of the auto-updated timestamp column, or `false`
@@ -31,22 +46,42 @@ export type FieldSpec = readonly [
  * - `bulk` — when `true`, read the JSONB parameter as a **recordset**
  *   (`jsonb_to_recordset`) so a single statement upserts many rows. When
  *   `false` (default), read it as a single record (`jsonb_to_record`).
+ * - `scalars` — constant bind params applied to every row (e.g. a
+ *   tenant/plant partition key). The recordset is `$1`; scalars follow in
+ *   declared order as `$2…$N`, so a `valueExpr` can reference them.
  */
 export interface MutationOptions {
   updated?: string | false;
   bulk?: boolean;
+  scalars?: Record<string, ScalarSpec>;
+}
+
+interface ResolvedScalar {
+  col: string;
+  ref: string;
+  key: boolean;
 }
 
 function resolveOptions(updated?: string | MutationOptions): {
   updatedColumn: string | null;
   source: 'jsonb_to_record' | 'jsonb_to_recordset';
+  scalars: ResolvedScalar[];
 } {
   const opts: MutationOptions =
     typeof updated === 'string' ? { updated } : (updated ?? {});
+  // Recordset is $1; scalars follow in declared order as $2…$N.
+  const scalars: ResolvedScalar[] = Object.entries(opts.scalars ?? {}).map(
+    ([col, spec], i) => ({
+      col,
+      ref: spec.type ? `$${i + 2}::${spec.type}` : `$${i + 2}`,
+      key: spec.key ?? false,
+    }),
+  );
   return {
     updatedColumn:
       opts.updated === false ? null : (opts.updated ?? 'updated_at'),
     source: opts.bulk ? 'jsonb_to_recordset' : 'jsonb_to_record',
+    scalars,
   };
 }
 
@@ -54,11 +89,17 @@ function recordTypesOf(fieldset: readonly FieldSpec[]): string {
   return fieldset.map(([field, type]) => `\n  ${field} ${type}`).join(',');
 }
 
-function keyMatchesOf(fieldset: readonly FieldSpec[], indent: string): string {
-  return fieldset
-    .filter(([, , isKey]) => isKey)
-    .map(([field]) => `o.${field} = n.${field}`)
-    .join(`\n${indent}and `);
+function keyMatchesOf(
+  fieldset: readonly FieldSpec[],
+  scalars: ResolvedScalar[],
+  indent: string,
+): string {
+  return [
+    ...fieldset
+      .filter(([, , isKey]) => isKey)
+      .map(([field]) => `o.${field} = n.${field}`),
+    ...scalars.filter((s) => s.key).map((s) => `o.${s.col} = ${s.ref}`),
+  ].join(`\n${indent}and `);
 }
 
 /**
@@ -104,28 +145,34 @@ export function updateMutation(
   fieldset: readonly FieldSpec[],
   updated?: string | MutationOptions,
 ): string {
-  const { updatedColumn, source } = resolveOptions(updated);
+  const { updatedColumn, source, scalars } = resolveOptions(updated);
 
-  const setClauses = fieldset
-    .filter(([, , isKey]) => !isKey)
-    .map(([field, , , value]) => `\n  ${field} = ${value ?? `n.${field}`}`)
-    .join(',');
+  const setClauses = [
+    ...fieldset
+      .filter(([, , isKey]) => !isKey)
+      .map(([field, , , value]) => `\n  ${field} = ${value ?? `n.${field}`}`),
+    ...scalars.filter((s) => !s.key).map((s) => `\n  ${s.col} = ${s.ref}`),
+  ].join(',');
 
   const timestampClause = updatedColumn
     ? `,\n  ${updatedColumn} = current_timestamp`
     : '';
 
-  const distinctChecks = fieldset
-    .filter(([, , isKey]) => !isKey)
-    .map(([field]) => `o.${field} is distinct from n.${field}`)
-    .join(`\n    or `);
+  const distinctChecks = [
+    ...fieldset
+      .filter(([, , isKey]) => !isKey)
+      .map(([field]) => `o.${field} is distinct from n.${field}`),
+    ...scalars
+      .filter((s) => !s.key)
+      .map((s) => `o.${s.col} is distinct from ${s.ref}`),
+  ].join(`\n    or `);
 
   return `
 update ${table} o
 set${setClauses}${timestampClause}
 from ${source}($1) as n(${recordTypesOf(fieldset)}
 ) where
-  ${keyMatchesOf(fieldset, '  ')}
+  ${keyMatchesOf(fieldset, scalars, '  ')}
   and (
     ${distinctChecks}
   )
@@ -136,11 +183,16 @@ function insertMutation(
   table: string,
   fieldset: readonly FieldSpec[],
   source: 'jsonb_to_record' | 'jsonb_to_recordset',
+  scalars: ResolvedScalar[],
 ): string {
-  const columns = fieldset.map(([field]) => field).join(', ');
-  const values = fieldset
-    .map(([field, , , value]) => value ?? `n.${field}`)
-    .join(', ');
+  const columns = [
+    ...fieldset.map(([field]) => field),
+    ...scalars.map((s) => s.col),
+  ].join(', ');
+  const values = [
+    ...fieldset.map(([field, , , value]) => value ?? `n.${field}`),
+    ...scalars.map((s) => s.ref),
+  ].join(', ');
 
   return `
 insert into ${table} (${columns})
@@ -148,7 +200,7 @@ select ${values}
 from ${source}($1) as n(${recordTypesOf(fieldset)}
 ) where not exists (
   select 1 from ${table} o
-    where ${keyMatchesOf(fieldset, '      ')}
+    where ${keyMatchesOf(fieldset, scalars, '      ')}
 )
 returning *`;
 }
@@ -195,9 +247,9 @@ export function upsertMutation(
   fieldset: readonly FieldSpec[],
   options: MutationOptions = {},
 ): UpsertMutation {
-  const { source } = resolveOptions(options);
+  const { source, scalars } = resolveOptions(options);
   return {
     update: updateMutation(table, fieldset, options),
-    insert: insertMutation(table, fieldset, source),
+    insert: insertMutation(table, fieldset, source, scalars),
   };
 }
