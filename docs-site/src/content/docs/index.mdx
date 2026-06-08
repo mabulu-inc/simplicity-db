@@ -1,0 +1,36 @@
+---
+title: '@smplcty/db'
+description: Tiny TypeScript helpers for pg — pool factory, secret resolution, transactions, bulk upserts, and friendly error messages.
+template: splash
+hero:
+  tagline: A handful of thin helpers over node-postgres. An env-driven Pool factory, connection-string resolution, checkout and transaction wrappers, a parameterized UPDATE/upsert generator, and friendly Postgres error messages. It does not reinvent pg — bring your own as a peer dependency.
+  actions:
+    - text: Get started
+      link: /simplicity-db/getting-started/introduction/
+      icon: right-arrow
+    - text: API reference
+      link: /simplicity-db/connecting/connect/
+      icon: open-book
+      variant: minimal
+    - text: GitHub
+      link: https://github.com/mabulu-inc/simplicity-db
+      icon: external
+      variant: minimal
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+<CardGrid>
+  <Card title="Thin over pg" icon="pencil">
+    No ORM, no query builder, no magic. Every helper is a few lines you'd otherwise write by hand on every service.
+  </Card>
+  <Card title="Schema-agnostic" icon="approve-check">
+    Knows nothing about your tables, sessions, or RLS. SQL generators take the table and columns as input; transaction wrappers set no session variables.
+  </Card>
+  <Card title="Safe upserts" icon="rocket">
+    UPDATE-then-INSERT-where-not-exists — never `ON CONFLICT`, which burns serial sequence values. Bulk recordsets in a single round-trip.
+  </Card>
+  <Card title="Typed errors" icon="setting">
+    Map Postgres SQLSTATE codes to user-facing messages and HTTP statuses without restating the copy in every service.
+  </Card>
+</CardGrid>
