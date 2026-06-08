@@ -2,7 +2,7 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased]
+## 3.1.0 (2026-06-08)
 
 Absorbs the `pg` plumbing that downstream services kept reimplementing
 (pool guardrails, secret resolution, transactions, bulk upserts, typed
