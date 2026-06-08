@@ -91,4 +91,49 @@ describe('upsertMutation', () => {
       expect(update).toContain('o.batch_id = $3');
     });
   });
+
+  describe('derived and input-only columns', () => {
+    const fieldset: FieldSpec[] = [
+      ['source_id', 'text', true],
+      ['unit', 'text', false, undefined, 'input'],
+      ['unit_id', 'int', false, '(select unit_id from units where code = n.unit)', 'derived'],
+    ];
+
+    it('omits a derived column from the recordset but writes it via valueExpr', () => {
+      const { update, insert } = upsertMutation('m', fieldset, { bulk: true });
+      // derived column not declared in the jsonb_to_recordset column list
+      expect(update).not.toContain('unit_id int');
+      // set and insert use the valueExpr
+      expect(update).toContain('unit_id = (select unit_id from units where code = n.unit)');
+      expect(insert).toContain('insert into m (source_id, unit_id)');
+      expect(insert).toContain('(select unit_id from units where code = n.unit)');
+    });
+
+    it('checks a derived column against its valueExpr, not n.col', () => {
+      const { update } = upsertMutation('m', fieldset, { bulk: true });
+      expect(update).toContain(
+        'o.unit_id is distinct from (select unit_id from units where code = n.unit)',
+      );
+      expect(update).not.toContain('o.unit_id is distinct from n.unit_id');
+    });
+
+    it('keeps an input-only column in the recordset but never writes it', () => {
+      const { update, insert } = upsertMutation('m', fieldset, { bulk: true });
+      // present in the recordset so n.unit resolves for the derived valueExpr
+      expect(update).toContain('unit text');
+      // but never set, change-checked, or inserted
+      expect(update).not.toContain('unit = ');
+      expect(update).not.toContain('o.unit is distinct from');
+      expect(insert).not.toContain(' unit,');
+      expect(insert).not.toContain(', unit)');
+    });
+
+    it('uses the valueExpr in the change check for a plain value field too', () => {
+      const { update } = upsertMutation('users', [
+        ['id', 'int', true],
+        ['email', 'text', false, 'lower(n.email)'],
+      ]);
+      expect(update).toContain('o.email is distinct from lower(n.email)');
+    });
+  });
 });

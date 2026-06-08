@@ -9,6 +9,7 @@ export {
   updateMutation,
   upsertMutation,
   type FieldSpec,
+  type FieldKind,
   type MutationOptions,
   type ScalarSpec,
   type UpsertMutation,
