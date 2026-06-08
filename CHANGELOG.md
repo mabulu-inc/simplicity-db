@@ -2,6 +2,45 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+Absorbs the `pg` plumbing that downstream services kept reimplementing
+(pool guardrails, secret resolution, transactions, bulk upserts, typed
+error mapping). All additive — existing `connect`, `withClient`,
+`updateMutation`, and `friendlyError` callers are unaffected.
+
+### Added
+
+- **`resolveDatabaseUrl(urlVar?, secretVar?)`** — resolve a connection
+  string from a URL env var, or parse a Secrets-Manager-style JSON env
+  var (`{ host, port?, dbname?, username, password }`) with the
+  credentials percent-encoded. Reads an env string already in the
+  process; never calls AWS.
+- **`withTransaction(pool, fn)`** — checkout-run-release wrapper that
+  runs the callback inside `BEGIN`/`COMMIT`, rolls back and rethrows the
+  original error on throw, and destroys the connection (rather than
+  reusing it) if the rollback itself fails. Stays RLS-agnostic so
+  services with different session conventions can share it.
+- **`upsertMutation(table, fieldset, options?)`** — returns paired
+  `{ update, insert }` statements: the `updateMutation` UPDATE plus a
+  matching `INSERT … SELECT … WHERE NOT EXISTS` (never `ON CONFLICT`).
+  Honors bulk recordset mode and per-field value expressions.
+- **`classifyPgError(err)`** — structured `{ code, httpStatus, message }`
+  classification sharing `friendlyError`'s copy. New connection-failure
+  codes (`08000`, `08006`, `08001`, `57P01`) now map to a
+  service-unavailable message and HTTP 503.
+
+### Changed
+
+- **`connect(prefix?, options?)`** now accepts an optional `pg.PoolConfig`
+  merged over the resolved connection string, so callers can set
+  `statement_timeout`, `idle_in_transaction_session_timeout`, pool size,
+  SSL, and the rest. No options → identical to before.
+- **`updateMutation`'s third argument** also accepts an options object:
+  `{ updated: false }` writes no timestamp (for tables without one) and
+  `{ bulk: true }` reads `$1` as a `jsonb_to_recordset`. Passing a string
+  still names the timestamp column, unchanged.
+
 ## 3.0.0 (2026-04-09)
 
 TypeScript port of v2.x. **No API changes** — same default
