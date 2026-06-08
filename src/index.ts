@@ -3,6 +3,7 @@ export { default } from './connect.js';
 
 // Named exports
 export { withClient } from './with-client.js';
+export { resolveDatabaseUrl } from './resolve-database-url.js';
 export {
   updateMutation,
   type FieldSpec,
