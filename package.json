@@ -1,6 +1,6 @@
 {
   "name": "@smplcty/db",
-  "version": "4.0.0",
+  "version": "4.1.0",
   "description": "Tiny TypeScript helpers for pg: env-driven Pool factory, withClient checkout-run-release wrapper, parameterized UPDATE statement generator, and friendly error messages for common pg constraint codes.",
   "license": "MIT",
   "type": "module",
