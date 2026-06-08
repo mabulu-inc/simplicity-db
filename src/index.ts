@@ -14,8 +14,10 @@ export {
 } from './update-mutation.js';
 export {
   friendlyError,
+  classifyPgError,
   formatTableColumnInfo,
   ERROR_CODES,
   MESSAGES,
   type PgErrorLike,
+  type PgErrorClassification,
 } from './friendly-error.js';
