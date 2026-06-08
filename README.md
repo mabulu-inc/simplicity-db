@@ -166,6 +166,28 @@ await client.query(update, [rows, plantId]); // $1 = rows, $2 = plantId
 await client.query(insert, [rows, plantId]);
 ```
 
+For FK-resolving upserts, a field can also declare a `kind` (5th tuple
+slot):
+
+- `'derived'` — an **output** column computed by its `valueExpr` (e.g. a
+  subselect on a source column) and not present in the input JSON. It's
+  omitted from the recordset, and both its SET and its change-check use
+  the `valueExpr`.
+- `'input'` — an **input-only** column kept in the recordset so other
+  `valueExpr`s can reference `n.{field}`, but never written.
+
+```ts
+const { update, insert } = upsertMutation('tares', [
+  ['source_id', 'text', true],
+  ['unit',      'text', false, undefined, 'input'],   // feeds the subselect
+  ['unit_id',   'int',  false,
+    '(select unit_id from units where code = n.unit)', 'derived'],
+], { bulk: true, scalars: { plant_id: { type: 'int', key: true } } });
+```
+
+The subselect is written once in the fieldset rather than repeated across
+the UPDATE SET, the `IS DISTINCT FROM` check, and the INSERT.
+
 ### `classifyPgError(err)` — structured error classification
 
 Returns a **copy-free** `{ code, category, httpStatus, constraint?,

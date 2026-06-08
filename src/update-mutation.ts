@@ -1,7 +1,22 @@
 /**
+ * The role a field plays beyond a plain key/value column:
+ *
+ * - `'derived'` — an **output** column whose value is computed by
+ *   `valueExpr` (e.g. an FK-resolving subselect on a *source* column) and
+ *   is NOT present in the input JSON. It is omitted from the recordset
+ *   type list, and both its SET and its `IS DISTINCT FROM` check use the
+ *   `valueExpr`.
+ * - `'input'` — an **input-only** column present in the recordset so other
+ *   `valueExpr`s can reference `n.{field}`, but never written (not in SET,
+ *   INSERT, or the change check). For a source code that resolves to a
+ *   stored id, e.g. `unit` feeding `(select unit_id … where code = n.unit)`.
+ */
+export type FieldKind = 'derived' | 'input';
+
+/**
  * One field in an `updateMutation` fieldset.
  *
- * Tuple shape: `[fieldName, sqlType, isKey?, valueExpr?]`
+ * Tuple shape: `[fieldName, sqlType, isKey?, valueExpr?, kind?]`
  *
  * - `fieldName` — column name in the target table
  * - `sqlType`  — Postgres type used in the `jsonb_to_record` cast
@@ -10,16 +25,18 @@
  *                (used to match the row), not the SET clause. At
  *                least one key field is required.
  * - `valueExpr` — optional SQL expression substituted in the SET /
- *                 SELECT clause instead of `n.{field}`. Useful for
- *                 derived values like `lower(n.email)` or a FK-resolving
- *                 subselect such as
+ *                 SELECT / change-check instead of `n.{field}`. Useful for
+ *                 `lower(n.email)` or a FK-resolving subselect such as
  *                 `(select id from parents where source_id = n.parent_source_id)`.
+ * - `kind`     — optional {@link FieldKind} (`'derived'` | `'input'`) for
+ *                output-only / input-only columns. Omit for plain columns.
  */
 export type FieldSpec = readonly [
   field: string,
   sqlType: string,
   isKey?: boolean,
   valueExpr?: string,
+  kind?: FieldKind,
 ];
 
 /**
@@ -85,8 +102,31 @@ function resolveOptions(updated?: string | MutationOptions): {
   };
 }
 
+// A field is in the recordset unless it's a derived (output-only) column.
+function inRecordset([, , , , kind]: FieldSpec): boolean {
+  return kind !== 'derived';
+}
+
+// SET / change-check columns: non-key and non-input (plain values + derived).
+function isWritten([, , isKey, , kind]: FieldSpec): boolean {
+  return !isKey && kind !== 'input';
+}
+
+// INSERT columns: everything except input-only (keys + values + derived).
+function inInsert([, , , , kind]: FieldSpec): boolean {
+  return kind !== 'input';
+}
+
+// The SQL value for a field: its valueExpr, else the recordset column.
+function valueOf([field, , , valueExpr]: FieldSpec): string {
+  return valueExpr ?? `n.${field}`;
+}
+
 function recordTypesOf(fieldset: readonly FieldSpec[]): string {
-  return fieldset.map(([field, type]) => `\n  ${field} ${type}`).join(',');
+  return fieldset
+    .filter(inRecordset)
+    .map(([field, type]) => `\n  ${field} ${type}`)
+    .join(',');
 }
 
 function keyMatchesOf(
@@ -148,9 +188,7 @@ export function updateMutation(
   const { updatedColumn, source, scalars } = resolveOptions(updated);
 
   const setClauses = [
-    ...fieldset
-      .filter(([, , isKey]) => !isKey)
-      .map(([field, , , value]) => `\n  ${field} = ${value ?? `n.${field}`}`),
+    ...fieldset.filter(isWritten).map((f) => `\n  ${f[0]} = ${valueOf(f)}`),
     ...scalars.filter((s) => !s.key).map((s) => `\n  ${s.col} = ${s.ref}`),
   ].join(',');
 
@@ -160,8 +198,8 @@ export function updateMutation(
 
   const distinctChecks = [
     ...fieldset
-      .filter(([, , isKey]) => !isKey)
-      .map(([field]) => `o.${field} is distinct from n.${field}`),
+      .filter(isWritten)
+      .map((f) => `o.${f[0]} is distinct from ${valueOf(f)}`),
     ...scalars
       .filter((s) => !s.key)
       .map((s) => `o.${s.col} is distinct from ${s.ref}`),
@@ -186,11 +224,11 @@ function insertMutation(
   scalars: ResolvedScalar[],
 ): string {
   const columns = [
-    ...fieldset.map(([field]) => field),
+    ...fieldset.filter(inInsert).map(([field]) => field),
     ...scalars.map((s) => s.col),
   ].join(', ');
   const values = [
-    ...fieldset.map(([field, , , value]) => value ?? `n.${field}`),
+    ...fieldset.filter(inInsert).map(valueOf),
     ...scalars.map((s) => s.ref),
   ].join(', ');
 

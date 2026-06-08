@@ -2,6 +2,29 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Derived and input-only columns in the upsert generator** (optional 5th
+  `FieldSpec` tuple slot, `kind`). `'derived'` marks an output column whose
+  value is a `valueExpr` (e.g. an FK-resolving subselect on a source
+  column) and is absent from the input JSON — it's omitted from the
+  recordset, and both its SET and its `IS DISTINCT FROM` check use the
+  `valueExpr`. `'input'` marks a column kept in the recordset so other
+  `valueExpr`s can reference `n.{field}` but is never written. Together
+  with `scalars`, this lets the generator express real FK-resolving
+  upserts (the subselect is written once instead of repeated across SET,
+  the change check, and INSERT). Exported `FieldKind`.
+
+### Changed
+
+- **The change check now uses a field's `valueExpr`** (`o.col IS DISTINCT
+  FROM <valueExpr>`) instead of `n.col`. Previously a field with a
+  `valueExpr` (e.g. `lower(n.email)`) was compared against the raw
+  recordset column, so the no-op skip could be wrong. Fields without a
+  `valueExpr` are unchanged.
+
 ## 4.0.0 (2026-06-08)
 
 ### Added
