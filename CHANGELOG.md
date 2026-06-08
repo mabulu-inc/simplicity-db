@@ -2,6 +2,32 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **`updateMutation`/`upsertMutation` `scalars` option** — constant bind
+  params applied to every row (e.g. a `tenant_id`/`plant_id` partition
+  key), sourced from `$2…$N` rather than repeated in each record. Makes
+  the generator usable for the dominant multi-tenant bulk-upsert shape
+  (`WHERE o.plant_id = $2 AND o.source_id = n.source_id`). Scalar keys
+  are matched in the WHERE / WHERE NOT EXISTS and included in the INSERT;
+  non-key scalars are written in SET. Exported `ScalarSpec`.
+
+### Changed
+
+- **BREAKING: `classifyPgError` is now copy-free.** It returns
+  `{ code, category, httpStatus, constraint?, table?, column? }` (was
+  `{ code, httpStatus, message }`). Classification (a low-level `pg`
+  concern) is separated from user-facing copy (an app/i18n concern), and
+  nothing leaks unless the caller surfaces it. Map `category`
+  (`unique_violation` | `foreign_key_violation` | `not_null_violation` |
+  `string_truncation` | `connection` | `unknown`) to your own message.
+  Exported `PgErrorCategory`.
+- **`friendlyError` documented as logs-only.** Its message embeds
+  `table`/`column` names; returning it to clients leaks schema. Use
+  `classifyPgError` for responses. (Behaviour unchanged; doc + guidance.)
+
 ## 3.1.0 (2026-06-08)
 
 Absorbs the `pg` plumbing that downstream services kept reimplementing

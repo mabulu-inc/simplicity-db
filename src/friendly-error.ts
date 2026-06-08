@@ -61,6 +61,7 @@ export interface PgErrorLike {
   table?: string;
   column?: string;
   detail?: string;
+  constraint?: string;
 }
 
 /**
@@ -77,16 +78,17 @@ export function formatTableColumnInfo(
 }
 
 /**
- * Translate a `pg` error into a short, user-facing message.
+ * Translate a `pg` error into a short message — **for logs / internal
+ * diagnostics only.**
+ *
+ * ⚠️ The returned string embeds the offending `table` and `column` names
+ * (e.g. `… in table "users" (column "email")`). Returning it in an HTTP
+ * response or any other untrusted channel leaks your schema. For
+ * responses, use {@link classifyPgError} to pick a status/category and
+ * supply your own user-facing copy.
  *
  * Returns `MESSAGES.DEFAULT` for any error this library doesn't
- * recognize, including a missing or undefined `error.code`. Never
- * throws.
- *
- * The mapping is opinionated about a handful of common constraint
- * codes — uniqueness, foreign key, not-null, truncation, undefined
- * column. For anything beyond these, you'll get the default message
- * and should log the original error for the application's developers.
+ * recognize, including a missing or undefined `error.code`. Never throws.
  *
  * @example
  * ```ts
@@ -95,7 +97,8 @@ export function formatTableColumnInfo(
  * try {
  *   await client.query('INSERT INTO users (email) VALUES ($1)', [email]);
  * } catch (err) {
- *   return res.status(400).json({ message: friendlyError(err) });
+ *   logger.warn({ err }, friendlyError(err)); // logs, not responses
+ *   throw err;
  * }
  * ```
  */
@@ -140,48 +143,69 @@ export function friendlyError(error: PgErrorLike | null | undefined): string {
 }
 
 /**
- * Structured classification of a `pg` error: the SQLSTATE `code`, a
- * suggested `httpStatus`, and the same user-facing `message` that
- * {@link friendlyError} returns.
+ * Coarse category of a `pg` error — a stable, copy-free classification
+ * the caller maps to its own user-facing message and i18n.
+ */
+export type PgErrorCategory =
+  | 'unique_violation'
+  | 'foreign_key_violation'
+  | 'not_null_violation'
+  | 'string_truncation'
+  | 'connection'
+  | 'unknown';
+
+/**
+ * Structured, **copy-free** classification of a `pg` error. Carries the
+ * SQLSTATE `code`, a coarse `category`, a suggested `httpStatus`, and the
+ * raw `constraint`/`table`/`column` fields — but no human-facing copy, so
+ * nothing leaks unless the caller chooses to surface it. The app owns the
+ * message (wording, i18n, what to expose).
  */
 export interface PgErrorClassification {
   code: string | undefined;
+  category: PgErrorCategory;
   httpStatus: number;
-  message: string;
+  constraint?: string;
+  table?: string;
+  column?: string;
 }
 
-/**
- * Map a SQLSTATE code to a suggested HTTP status:
- *
- * - `409` — unique violation (conflict)
- * - `400` — foreign-key / restrict / not-null / truncation (bad input)
- * - `503` — connection failure / admin shutdown (unavailable)
- * - `500` — anything else, including a missing code
- */
-function httpStatusFor(code: string | undefined): number {
+function categoryFor(code: string | undefined): PgErrorCategory {
   switch (code) {
     case ERROR_CODES.UNIQUE_VIOLATION:
-      return 409;
+      return 'unique_violation';
     case ERROR_CODES.FOREIGN_KEY_VIOLATION:
     case ERROR_CODES.RESTRICT_VIOLATION:
+      return 'foreign_key_violation';
     case ERROR_CODES.NOT_NULL_VIOLATION:
+      return 'not_null_violation';
     case ERROR_CODES.STRING_DATA_RIGHT_TRUNCATION:
-      return 400;
+      return 'string_truncation';
     case ERROR_CODES.CONNECTION_EXCEPTION:
     case ERROR_CODES.CONNECTION_FAILURE:
     case ERROR_CODES.SQLCLIENT_UNABLE_TO_ESTABLISH:
     case ERROR_CODES.ADMIN_SHUTDOWN:
-      return 503;
+      return 'connection';
     default:
-      return 500;
+      return 'unknown';
   }
 }
 
+const HTTP_STATUS: Record<PgErrorCategory, number> = {
+  unique_violation: 409,
+  foreign_key_violation: 400,
+  not_null_violation: 400,
+  string_truncation: 400,
+  connection: 503,
+  unknown: 500,
+};
+
 /**
- * Classify a `pg` error into `{ code, httpStatus, message }`. The
- * `message` is byte-for-byte what {@link friendlyError} returns, so a
- * service can wrap this in its own typed error class without restating
- * the copy.
+ * Classify a `pg` error into `{ code, category, httpStatus, constraint?,
+ * table?, column? }` — no baked-in copy. Use this in request handlers:
+ * pick the status from `httpStatus`/`category`, then build your own
+ * message (keyed off `constraint` if you like). For a quick log line, see
+ * {@link friendlyError}.
  *
  * @example
  * ```ts
@@ -190,17 +214,21 @@ function httpStatusFor(code: string | undefined): number {
  * try {
  *   await client.query(sql, params);
  * } catch (err) {
- *   const { httpStatus, message } = classifyPgError(err);
- *   reply.code(httpStatus).send({ message });
+ *   const { httpStatus, category, constraint } = classifyPgError(err);
+ *   reply.code(httpStatus).send({ message: messageFor(category, constraint) });
  * }
  * ```
  */
 export function classifyPgError(
   error: PgErrorLike | null | undefined,
 ): PgErrorClassification {
+  const category = categoryFor(error?.code);
   return {
     code: error?.code,
-    httpStatus: httpStatusFor(error?.code),
-    message: friendlyError(error),
+    category,
+    httpStatus: HTTP_STATUS[category],
+    constraint: error?.constraint,
+    table: error?.table,
+    column: error?.column,
   };
 }

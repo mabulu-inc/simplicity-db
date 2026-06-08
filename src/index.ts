@@ -10,6 +10,7 @@ export {
   upsertMutation,
   type FieldSpec,
   type MutationOptions,
+  type ScalarSpec,
   type UpsertMutation,
 } from './update-mutation.js';
 export {
@@ -20,4 +21,5 @@ export {
   MESSAGES,
   type PgErrorLike,
   type PgErrorClassification,
+  type PgErrorCategory,
 } from './friendly-error.js';

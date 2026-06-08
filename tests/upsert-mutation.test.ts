@@ -44,4 +44,51 @@ describe('upsertMutation', () => {
     expect(insert).toContain('o.plant_id = n.plant_id');
     expect(insert).toContain('o.source_id = n.source_id');
   });
+
+  describe('scalar / external params', () => {
+    it('matches a scalar key on a bind param in both halves and inserts it', () => {
+      const { update, insert } = upsertMutation(
+        'tares',
+        [
+          ['source_id', 'text', true],
+          ['val', 'numeric'],
+        ],
+        { bulk: true, scalars: { plant_id: { type: 'int', key: true } } },
+      );
+      // scalar key matched on $2 (recordset is $1), not on n.plant_id
+      expect(update).toContain('o.plant_id = $2::int');
+      expect(update).toContain('o.source_id = n.source_id');
+      // not part of the recordset column list
+      expect(update).not.toContain('plant_id int,');
+      // insert includes the scalar column + bind value, and matches on it
+      expect(insert).toContain('insert into tares (source_id, val, plant_id)');
+      expect(insert).toContain('select n.source_id, n.val, $2::int');
+      expect(insert).toContain('o.plant_id = $2::int');
+    });
+
+    it('writes a non-key scalar in SET and checks it for change', () => {
+      const { update, insert } = upsertMutation(
+        'events',
+        [
+          ['id', 'int', true],
+          ['name', 'text'],
+        ],
+        { scalars: { source: {} } },
+      );
+      expect(update).toContain('source = $2');
+      expect(update).toContain('o.source is distinct from $2');
+      expect(insert).toContain('insert into events (id, name, source)');
+      expect(insert).toContain('select n.id, n.name, $2');
+    });
+
+    it('numbers multiple scalars in declared order starting at $2', () => {
+      const { update } = upsertMutation(
+        't',
+        [['source_id', 'text', true], ['v', 'numeric']],
+        { scalars: { plant_id: { key: true }, batch_id: { key: true } } },
+      );
+      expect(update).toContain('o.plant_id = $2');
+      expect(update).toContain('o.batch_id = $3');
+    });
+  });
 });
