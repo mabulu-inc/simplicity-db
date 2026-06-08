@@ -59,4 +59,35 @@ returning *`);
     // The cast still uses the column name even when valueExpr is set:
     expect(query).toContain('email text');
   });
+
+  it('omits the timestamp clause when updated is false', () => {
+    const fieldset: FieldSpec[] = [
+      ['id', 'int', true],
+      ['name', 'text'],
+    ];
+    const query = updateMutation('test_table', fieldset, { updated: false });
+    expect(query).not.toContain('current_timestamp');
+    expect(query).toContain('set\n  name = n.name\nfrom jsonb_to_record($1)');
+  });
+
+  it('emits jsonb_to_recordset in bulk mode', () => {
+    const fieldset: FieldSpec[] = [
+      ['id', 'int', true],
+      ['name', 'text'],
+    ];
+    const query = updateMutation('test_table', fieldset, { bulk: true });
+    expect(query).toContain('from jsonb_to_recordset($1)');
+    expect(query).toContain('updated_at = current_timestamp');
+  });
+
+  it('still accepts an options object with a custom timestamp column', () => {
+    const fieldset: FieldSpec[] = [
+      ['id', 'int', true],
+      ['name', 'text'],
+    ];
+    const query = updateMutation('test_table', fieldset, {
+      updated: 'modified_at',
+    });
+    expect(query).toContain('modified_at = current_timestamp');
+  });
 });
