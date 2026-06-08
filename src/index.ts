@@ -7,7 +7,10 @@ export { withTransaction } from './with-transaction.js';
 export { resolveDatabaseUrl } from './resolve-database-url.js';
 export {
   updateMutation,
+  upsertMutation,
   type FieldSpec,
+  type MutationOptions,
+  type UpsertMutation,
 } from './update-mutation.js';
 export {
   friendlyError,
