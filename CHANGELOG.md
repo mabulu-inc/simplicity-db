@@ -4,6 +4,8 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+## [4.3.0] - 2026-06-13
+
 ### Added
 
 - **Optional `ON CONFLICT DO NOTHING` race backstop in `upsertMutation`.**
