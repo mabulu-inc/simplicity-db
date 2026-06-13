@@ -24,7 +24,7 @@ All notable changes to this project will be documented in this file.
   identical — but any test or snapshot asserting on the old lowercase
   output needs updating.
 
-## 4.2.0 (2026-06-08)
+## [4.2.0] - 2026-06-08
 
 ### Changed
 
@@ -36,7 +36,7 @@ All notable changes to this project will be documented in this file.
   default are unchanged. (The function had no consumers, so this removes a
   footgun rather than breaking anything.)
 
-## 4.1.0 (2026-06-08)
+## [4.1.0] - 2026-06-08
 
 ### Added
 
@@ -59,7 +59,7 @@ All notable changes to this project will be documented in this file.
   recordset column, so the no-op skip could be wrong. Fields without a
   `valueExpr` are unchanged.
 
-## 4.0.0 (2026-06-08)
+## [4.0.0] - 2026-06-08
 
 ### Added
 
@@ -85,7 +85,7 @@ All notable changes to this project will be documented in this file.
   `table`/`column` names; returning it to clients leaks schema. Use
   `classifyPgError` for responses. (Behaviour unchanged; doc + guidance.)
 
-## 3.1.0 (2026-06-08)
+## [3.1.0] - 2026-06-08
 
 Absorbs the `pg` plumbing that downstream services kept reimplementing
 (pool guardrails, secret resolution, transactions, bulk upserts, typed
@@ -124,7 +124,7 @@ error mapping). All additive — existing `connect`, `withClient`,
   `{ bulk: true }` reads `$1` as a `jsonb_to_recordset`. Passing a string
   still names the timestamp column, unchanged.
 
-## 3.0.0 (2026-04-09)
+## [3.0.0] - 2026-04-09
 
 TypeScript port of v2.x. **No API changes** — same default
 `connect` export, same named `withClient`, `updateMutation`, and
@@ -192,7 +192,7 @@ package is republished under a new name, drops `dotenv`, makes
 
 * module path for friendlyError ([5d380a2](https://github.com/mabulu-inc/db/commit/5d380a2f4444274e53c54a1a6f81560203c29914))
 
-## [2.2.0](https://github.com/mabulu-inc/db/compare/v2.0.3...v2.2.0) (2025-03-17)
+## [2.2.0] - 2025-03-17
 
 
 ### Features
@@ -220,7 +220,7 @@ package is republished under a new name, drops `dotenv`, makes
 
 * uses npm test ([f6c7e00](https://github.com/mabulu-inc/db/commit/f6c7e0059ada60b8ba4cdeb1ce26b7213f8b5821))
 
-## [2.0.0](https://github.com/mabulu-inc/db/compare/v1.3.1...v2.0.0) (2024-08-29)
+## [2.0.0] - 2024-08-29
 
 
 ### ⚠ BREAKING CHANGES
@@ -238,21 +238,21 @@ package is republished under a new name, drops `dotenv`, makes
 
 * npm pkg fix ([81b1860](https://github.com/mabulu-inc/db/commit/81b186073538a801f1bf6185bbb826f186a7b78a))
 
-## [1.3.0](https://github.com/mabulu-inc/db/compare/v1.2.0...v1.3.0) (2024-08-28)
+## [1.3.0] - 2024-08-28
 
 
 ### Features
 
 * enable env var prefixing ([a97341b](https://github.com/mabulu-inc/db/commit/a97341b8edeaf33065a768a6db7a62c57d65baaa))
 
-## [1.2.0](https://github.com/mabulu-inc/db/compare/v1.1.0...v1.2.0) (2024-08-28)
+## [1.2.0] - 2024-08-28
 
 
 ### Features
 
 * lint during release ([b73bc71](https://github.com/mabulu-inc/db/commit/b73bc714476291f74d41299637b6442e8721dc54))
 
-## 1.1.0 (2024-08-28)
+## [1.1.0] - 2024-08-28
 
 
 ### Features
