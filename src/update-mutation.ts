@@ -66,11 +66,15 @@ export interface ScalarSpec {
  * - `scalars` — constant bind params applied to every row (e.g. a
  *   tenant/plant partition key). The recordset is `$1`; scalars follow in
  *   declared order as `$2…$N`, so a `valueExpr` can reference them.
+ * - `onConflict` — when `'DO NOTHING'`, append `on conflict do nothing` to
+ *   the generated INSERT as a race backstop on top of `WHERE NOT EXISTS`.
+ *   Default omitted (no `ON CONFLICT`). Has no effect on `updateMutation`.
  */
 export interface MutationOptions {
   updated?: string | false;
   bulk?: boolean;
   scalars?: Record<string, ScalarSpec>;
+  onConflict?: 'DO NOTHING';
 }
 
 interface ResolvedScalar {
@@ -83,6 +87,7 @@ function resolveOptions(updated?: string | MutationOptions): {
   updatedColumn: string | null;
   source: 'jsonb_to_record' | 'jsonb_to_recordset';
   scalars: ResolvedScalar[];
+  onConflict: boolean;
 } {
   const opts: MutationOptions =
     typeof updated === 'string' ? { updated } : (updated ?? {});
@@ -99,6 +104,7 @@ function resolveOptions(updated?: string | MutationOptions): {
       opts.updated === false ? null : (opts.updated ?? 'updated_at'),
     source: opts.bulk ? 'jsonb_to_recordset' : 'jsonb_to_record',
     scalars,
+    onConflict: opts.onConflict === 'DO NOTHING',
   };
 }
 
@@ -139,7 +145,7 @@ function keyMatchesOf(
       .filter(([, , isKey]) => isKey)
       .map(([field]) => `o.${field} = n.${field}`),
     ...scalars.filter((s) => s.key).map((s) => `o.${s.col} = ${s.ref}`),
-  ].join(`\n${indent}and `);
+  ].join(`\n${indent}AND `);
 }
 
 /**
@@ -193,28 +199,28 @@ export function updateMutation(
   ].join(',');
 
   const timestampClause = updatedColumn
-    ? `,\n  ${updatedColumn} = current_timestamp`
+    ? `,\n  ${updatedColumn} = CURRENT_TIMESTAMP`
     : '';
 
   const distinctChecks = [
     ...fieldset
       .filter(isWritten)
-      .map((f) => `o.${f[0]} is distinct from ${valueOf(f)}`),
+      .map((f) => `o.${f[0]} IS DISTINCT FROM ${valueOf(f)}`),
     ...scalars
       .filter((s) => !s.key)
-      .map((s) => `o.${s.col} is distinct from ${s.ref}`),
-  ].join(`\n    or `);
+      .map((s) => `o.${s.col} IS DISTINCT FROM ${s.ref}`),
+  ].join(`\n    OR `);
 
   return `
-update ${table} o
-set${setClauses}${timestampClause}
-from ${source}($1) as n(${recordTypesOf(fieldset)}
-) where
+UPDATE ${table} o
+SET${setClauses}${timestampClause}
+FROM ${source}($1) AS n(${recordTypesOf(fieldset)}
+) WHERE
   ${keyMatchesOf(fieldset, scalars, '  ')}
-  and (
+  AND (
     ${distinctChecks}
   )
-returning *`;
+RETURNING *`;
 }
 
 function insertMutation(
@@ -222,6 +228,7 @@ function insertMutation(
   fieldset: readonly FieldSpec[],
   source: 'jsonb_to_record' | 'jsonb_to_recordset',
   scalars: ResolvedScalar[],
+  onConflict: boolean,
 ): string {
   const columns = [
     ...fieldset.filter(inInsert).map(([field]) => field),
@@ -232,15 +239,17 @@ function insertMutation(
     ...scalars.map((s) => s.ref),
   ].join(', ');
 
+  const conflictClause = onConflict ? '\nON CONFLICT DO NOTHING' : '';
+
   return `
-insert into ${table} (${columns})
-select ${values}
-from ${source}($1) as n(${recordTypesOf(fieldset)}
-) where not exists (
-  select 1 from ${table} o
-    where ${keyMatchesOf(fieldset, scalars, '      ')}
-)
-returning *`;
+INSERT INTO ${table} (${columns})
+SELECT ${values}
+FROM ${source}($1) AS n(${recordTypesOf(fieldset)}
+) WHERE NOT EXISTS (
+  SELECT 1 FROM ${table} o
+    WHERE ${keyMatchesOf(fieldset, scalars, '      ')}
+)${conflictClause}
+RETURNING *`;
 }
 
 /**
@@ -256,9 +265,17 @@ export interface UpsertMutation {
 /**
  * Build a non-destructive upsert as two statements: the
  * {@link updateMutation} UPDATE plus a matching
- * `INSERT … SELECT … WHERE NOT EXISTS`. This is the
- * UPDATE-then-INSERT-where-not-exists pattern — **never** `ON CONFLICT`,
- * which burns serial sequence values and causes id gaps.
+ * `INSERT … SELECT … WHERE NOT EXISTS`. The `WHERE NOT EXISTS` is what
+ * keeps the INSERT from burning serial/bigserial sequence values (and the
+ * id gaps that follow) — it generates rows only for genuinely new keys,
+ * so it is always emitted and `ON CONFLICT` is never a substitute for it.
+ *
+ * Pass `{ onConflict: 'DO NOTHING' }` to additionally append
+ * `on conflict do nothing` to the INSERT. This is a *complement* to
+ * `WHERE NOT EXISTS`, not a replacement: it closes the race window where
+ * two concurrent writers both pass the not-exists check and then collide
+ * on the unique constraint. It reintroduces no churn — the sequence only
+ * advances for rows that actually insert.
  *
  * Pass `{ bulk: true }` to drive both halves from a single
  * `jsonb_to_recordset` parameter — one round-trip each for any number of
@@ -285,9 +302,9 @@ export function upsertMutation(
   fieldset: readonly FieldSpec[],
   options: MutationOptions = {},
 ): UpsertMutation {
-  const { source, scalars } = resolveOptions(options);
+  const { source, scalars, onConflict } = resolveOptions(options);
   return {
     update: updateMutation(table, fieldset, options),
-    insert: insertMutation(table, fieldset, source, scalars),
+    insert: insertMutation(table, fieldset, source, scalars, onConflict),
   };
 }

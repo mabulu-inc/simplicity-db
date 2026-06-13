@@ -9,22 +9,25 @@ describe('updateMutation', () => {
       ['name', 'varchar'],
     ];
     const query = updateMutation('test_table', fieldset);
-    expect(query).toBe(`
-update test_table o
-set
-  name = n.name,
-  updated_at = current_timestamp
-from jsonb_to_record($1) as n(
-  id int,
-  sub_id int,
-  name varchar
-) where
-  o.id = n.id
-  and o.sub_id = n.sub_id
-  and (
-    o.name is distinct from n.name
-  )
-returning *`);
+    // Shape regression guard — regenerate intentionally with `vitest -u`.
+    expect(query).toMatchInlineSnapshot(`
+      "
+      UPDATE test_table o
+      SET
+        name = n.name,
+        updated_at = CURRENT_TIMESTAMP
+      FROM jsonb_to_record($1) AS n(
+        id int,
+        sub_id int,
+        name varchar
+      ) WHERE
+        o.id = n.id
+        AND o.sub_id = n.sub_id
+        AND (
+          o.name IS DISTINCT FROM n.name
+        )
+      RETURNING *"
+    `);
   });
 
   it('generates an update mutation with 1 key column and custom updated column name', () => {
@@ -33,20 +36,23 @@ returning *`);
       ['name', 'varchar'],
     ];
     const query = updateMutation('test_table', fieldset, 'updated');
-    expect(query).toBe(`
-update test_table o
-set
-  name = n.name,
-  updated = current_timestamp
-from jsonb_to_record($1) as n(
-  id int,
-  name varchar
-) where
-  o.id = n.id
-  and (
-    o.name is distinct from n.name
-  )
-returning *`);
+    // Shape regression guard — regenerate intentionally with `vitest -u`.
+    expect(query).toMatchInlineSnapshot(`
+      "
+      UPDATE test_table o
+      SET
+        name = n.name,
+        updated = CURRENT_TIMESTAMP
+      FROM jsonb_to_record($1) AS n(
+        id int,
+        name varchar
+      ) WHERE
+        o.id = n.id
+        AND (
+          o.name IS DISTINCT FROM n.name
+        )
+      RETURNING *"
+    `);
   });
 
   it('uses a custom value expression when provided in the FieldSpec', () => {
@@ -66,8 +72,10 @@ returning *`);
       ['name', 'text'],
     ];
     const query = updateMutation('test_table', fieldset, { updated: false });
-    expect(query).not.toContain('current_timestamp');
-    expect(query).toContain('set\n  name = n.name\nfrom jsonb_to_record($1)');
+    // Keyword casing is cosmetic — assert structure case-insensitively.
+    const sql = query.toLowerCase();
+    expect(sql).not.toContain('current_timestamp');
+    expect(sql).toContain('set\n  name = n.name\nfrom jsonb_to_record($1)');
   });
 
   it('emits jsonb_to_recordset in bulk mode', () => {
@@ -76,8 +84,9 @@ returning *`);
       ['name', 'text'],
     ];
     const query = updateMutation('test_table', fieldset, { bulk: true });
-    expect(query).toContain('from jsonb_to_recordset($1)');
-    expect(query).toContain('updated_at = current_timestamp');
+    const sql = query.toLowerCase();
+    expect(sql).toContain('from jsonb_to_recordset($1)');
+    expect(sql).toContain('updated_at = current_timestamp');
   });
 
   it('still accepts an options object with a custom timestamp column', () => {
@@ -88,6 +97,6 @@ returning *`);
     const query = updateMutation('test_table', fieldset, {
       updated: 'modified_at',
     });
-    expect(query).toContain('modified_at = current_timestamp');
+    expect(query.toLowerCase()).toContain('modified_at = current_timestamp');
   });
 });

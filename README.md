@@ -137,10 +137,11 @@ argument also accepts an options object:
 ### `upsertMutation(table, fieldset, options?)` — UPDATE + INSERT
 
 Returns `{ update, insert }` — the `updateMutation` above plus a
-matching `INSERT … SELECT … WHERE NOT EXISTS`. This is the
-UPDATE-then-insert-where-not-exists pattern (**never** `ON CONFLICT`,
-which burns serial sequence values). Run both with the same JSONB
-parameter:
+matching `INSERT … SELECT … WHERE NOT EXISTS`. The `WHERE NOT EXISTS`
+guard is what keeps the INSERT from burning serial/bigserial sequence
+values (it generates rows only for genuinely new keys), so it is always
+emitted and `ON CONFLICT` never replaces it. Run both with the same
+JSONB parameter:
 
 ```ts
 import { upsertMutation } from '@smplcty/db';
@@ -192,6 +193,21 @@ const { update, insert } = upsertMutation('tares', [
 
 The subselect is written once in the fieldset rather than repeated across
 the UPDATE SET, the `IS DISTINCT FROM` check, and the INSERT.
+
+For concurrent writers, pass `{ onConflict: 'DO NOTHING' }` to append
+`ON CONFLICT DO NOTHING` to the INSERT. This is a **complement** to
+`WHERE NOT EXISTS`, not a replacement: `WHERE NOT EXISTS` prevents
+sequence churn, while `ON CONFLICT DO NOTHING` closes the race where two
+writers both pass the not-exists check and then collide on the unique
+constraint. It only affects the `insert` half.
+
+```ts
+const { insert } = upsertMutation('tares', fieldset, {
+  bulk: true,
+  onConflict: 'DO NOTHING',
+});
+// insert ends with: … WHERE NOT EXISTS (…) ON CONFLICT DO NOTHING RETURNING *
+```
 
 ### `classifyPgError(err)` — structured error classification
 

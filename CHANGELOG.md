@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [Unreleased]
+
+### Added
+
+- **Optional `ON CONFLICT DO NOTHING` race backstop in `upsertMutation`.**
+  Pass `{ onConflict: 'DO NOTHING' }` to append `ON CONFLICT DO NOTHING`
+  to the generated INSERT (default: omitted, so existing output is
+  unchanged). This is a *complement* to the always-present
+  `WHERE NOT EXISTS`, not a replacement: `WHERE NOT EXISTS` still prevents
+  serial/bigserial sequence churn, while `ON CONFLICT DO NOTHING` closes
+  the concurrency race where two writers both pass the not-exists check
+  and then collide on the unique constraint. It only affects the `insert`
+  half.
+
+### Changed
+
+- **Generated SQL now uses uppercase keywords** (`SELECT`, `INSERT INTO`,
+  `WHERE NOT EXISTS`, `IS DISTINCT FROM`, …) across `updateMutation` and
+  `upsertMutation`. Purely cosmetic — the statements are semantically
+  identical — but any test or snapshot asserting on the old lowercase
+  output needs updating.
+
 ## 4.2.0 (2026-06-08)
 
 ### Changed
