@@ -45,7 +45,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
     "clean": "rm -rf dist",
-    "lint": "eslint src tests",
+    "lint": "oxlint src tests",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -55,15 +55,14 @@
     "pg": ">=8.0.0"
   },
   "devDependencies": {
-    "@eslint/js": "^10.0.1",
-    "@release-it/keep-a-changelog": "^7.1.0",
-    "@types/node": "^25.5.2",
-    "@types/pg": "^8.20.0",
-    "eslint": "^10.2.0",
-    "pg": "^8.20.0",
-    "release-it": "^19.2.4",
-    "typescript": "^6.0.2",
-    "typescript-eslint": "^8.58.1",
-    "vitest": "^4.1.4"
+    "@release-it/keep-a-changelog": "^8.0.1",
+    "@types/node": "^26.6.6",
+    "@types/pg": "^8.23.1",
+    "oxlint": "^1.90.0",
+    "pg": "^8.23.1",
+    "release-it": "^21.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5"
   }
 }

@@ -29,7 +29,7 @@ pnpm install
 
 ```sh
 pnpm test    # runs node --test against tests/
-pnpm lint    # eslint
+pnpm lint    # oxlint
 ```
 
 Both must pass before submitting a PR.
