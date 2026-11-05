@@ -36,6 +36,7 @@ interface DbSecret {
  * const pool = connect(undefined, {
  *   connectionString: resolveDatabaseUrl('DATABASE_URL', 'DB_SECRET', { dbname: 'salez1' }),
  *   statement_timeout: 30_000,
+ *   idle_in_transaction_session_timeout: 60_000,
  * });
  * ```
  *

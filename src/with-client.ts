@@ -20,7 +20,7 @@ import type { Pool, PoolClient } from 'pg';
  * ```ts
  * import connect, { withClient } from '@smplcty/db';
  *
- * const pool = connect();
+ * const pool = connect(undefined, { statement_timeout: 30_000, idle_in_transaction_session_timeout: 60_000 });
  *
  * const result = await withClient(pool, async (client) => {
  *   await client.query("SET LOCAL app.tenant_id = '42'");

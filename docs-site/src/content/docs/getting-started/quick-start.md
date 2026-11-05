@@ -11,7 +11,7 @@ import connect, {
 } from '@smplcty/db';
 
 // 1. A pool from DATABASE_URL, with a server-side guardrail.
-const pool = connect(undefined, { statement_timeout: 30_000 });
+const pool = connect(undefined, { statement_timeout: 30_000, idle_in_transaction_session_timeout: 60_000 });
 
 // 2. A bulk, non-destructive upsert (UPDATE then INSERT-where-not-exists).
 const { update, insert } = upsertMutation(

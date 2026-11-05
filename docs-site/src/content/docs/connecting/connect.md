@@ -1,10 +1,15 @@
 ---
 title: connect
-description: Env-driven pg.Pool factory with optional pool config.
+description: Env-driven pg.Pool factory that requires server-side time limits.
 ---
 
 ```ts
-connect(prefix?: string, options?: pg.PoolConfig): pg.Pool
+connect(prefix: string | undefined, options: ConnectOptions): pg.Pool
+
+type ConnectOptions = pg.PoolConfig & {
+  statement_timeout: number;                    // ms; 0 keeps the server default
+  idle_in_transaction_session_timeout: number;  // ms; 0 keeps the server default
+};
 ```
 
 The default export. Builds a `pg.Pool` from an environment variable.
@@ -18,28 +23,45 @@ one process talks to more than one database.
 ```ts
 import connect from '@smplcty/db';
 
-const pool = connect();          // DATABASE_URL
-const replica = connect('REPLICA'); // REPLICA_DATABASE_URL || DATABASE_URL
+const limits = { statement_timeout: 30_000, idle_in_transaction_session_timeout: 60_000 };
+
+const pool = connect(undefined, limits);    // DATABASE_URL
+const replica = connect('REPLICA', limits); // REPLICA_DATABASE_URL || DATABASE_URL
 ```
 
-## Pool options
+## Time limits
 
-The second argument is any [`pg.PoolConfig`](https://node-postgres.com/apis/pool).
-It's merged **over** the resolved `connectionString`, so you can set
-guardrails and pool sizing — or override the connection string itself
-(for example with [`resolveDatabaseUrl`](/simplicity-db/connecting/resolve-database-url/)).
+`statement_timeout` and `idle_in_transaction_session_timeout` are
+required, in milliseconds, and `connect()` throws without them. Postgres
+has no limit on either by default: a query whose client has gone away
+keeps running, and a connection left inside a transaction holds back
+vacuum, for as long as the server is up. Both are enforced by the
+server — a client-side `query_timeout` would only stop you waiting while
+the query kept running.
+
+`0` sends no limit, so the session keeps the role's or database's own
+setting — none, unless one is configured. It has to be written out, so it
+shows up in review.
+
+The pool's values are a default, not a ceiling: a `statement_timeout`
+parameter in the connection string, or a later `SET`, still overrides them.
+
+Work that legitimately needs longer raises the limit for its own
+transaction, leaving the pool's default in place for everything else:
 
 ```ts
-// Server-side guardrails for a user-facing pool
-const app = connect(undefined, {
-  statement_timeout: 30_000,
-  idle_in_transaction_session_timeout: 60_000,
+await withTransaction(pool, async (client) => {
+  await client.query("select set_config('statement_timeout', '600000', true)");
+  // ... the long statement
 });
 ```
 
-`statement_timeout` makes Postgres abort a runaway query and free the
-backend — a client-side `query_timeout` would only stop you waiting
-while the query kept running.
+## Other pool options
+
+Any other [`pg.PoolConfig`](https://node-postgres.com/apis/pool) field
+is passed through and merged **over** the resolved `connectionString`,
+so you can set pool sizing — or override the connection string itself
+(for example with [`resolveDatabaseUrl`](/simplicity-db/connecting/resolve-database-url/)).
 
 :::note
 `connect()` does not load `.env`. Ensure your environment variables are

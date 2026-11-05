@@ -20,7 +20,7 @@ callback in a transaction.
 ```ts
 import connect, { withTransaction } from '@smplcty/db';
 
-const pool = connect();
+const pool = connect(undefined, { statement_timeout: 30_000, idle_in_transaction_session_timeout: 60_000 });
 
 await withTransaction(pool, async (client) => {
   await client.query('insert into widgets (name) values ($1)', [name]);

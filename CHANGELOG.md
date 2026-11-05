@@ -4,6 +4,22 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Changed
+
+- **BREAKING: `connect()` requires time limits.** Its options must set
+  `statement_timeout` and `idle_in_transaction_session_timeout`, in
+  milliseconds; `connect()` refuses to build a pool without both, at
+  compile time and at run time. Postgres has no limit on either by
+  default, so a query whose client has gone away keeps running, and a
+  connection left inside a transaction holds back vacuum, for as long as
+  the server is up. `0` sends no limit, so the session keeps the role's
+  or database's own setting, and now has to be written out. A
+  `statement_timeout` in the connection string, or a later `SET`, still
+  overrides the pool's value. To upgrade, pass both limits to every
+  `connect()` call; work that needs longer raises the limit for its own
+  transaction with `SET LOCAL statement_timeout`. The options type is exported as
+  `ConnectOptions`.
+
 ## [4.3.0] - 2026-06-13
 
 ### Added
@@ -85,7 +101,7 @@ All notable changes to this project will be documented in this file.
   Exported `PgErrorCategory`.
 - **`friendlyError` documented as logs-only.** Its message embeds
   `table`/`column` names; returning it to clients leaks schema. Use
-  `classifyPgError` for responses. (Behaviour unchanged; doc + guidance.)
+  `classifyPgError` for responses. (Behavior unchanged; doc + guidance.)
 
 ## [3.1.0] - 2026-06-08
 

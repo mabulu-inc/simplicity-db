@@ -1,5 +1,5 @@
 // Default export — the connect() factory, matching v2.x.
-export { default } from './connect.js';
+export { default, type ConnectOptions } from './connect.js';
 
 // Named exports
 export { withClient } from './with-client.js';

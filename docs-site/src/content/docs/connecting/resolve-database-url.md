@@ -21,6 +21,7 @@ import connect, { resolveDatabaseUrl } from '@smplcty/db';
 const pool = connect(undefined, {
   connectionString: resolveDatabaseUrl('DATABASE_URL', 'DB_SECRET'),
   statement_timeout: 30_000,
+  idle_in_transaction_session_timeout: 60_000,
 });
 ```
 

@@ -51,12 +51,14 @@ Use [Conventional Commits](https://www.conventionalcommits.org/) — e.g. `fix: 
 Releases are automated via GitHub Actions + npm trusted publishing:
 
 ```sh
-pnpm release:patch   # bug fixes
-pnpm release:minor   # new backward-compatible features
-pnpm release:major   # breaking changes
+pnpm release patch   # bug fixes
+pnpm release minor   # new backward-compatible features
+pnpm release major   # breaking changes
 ```
 
-Each script bumps the version, tags the commit, pushes, and creates a GitHub release. The `publish.yml` workflow then publishes to npm via OIDC — no tokens required.
+Pass the increment every time: with none, release-it cuts a patch, and the CHANGELOG's **BREAKING** marker does not change that.
+
+Each run bumps the version, tags the commit, pushes, and creates a GitHub release. The `publish.yml` workflow then publishes to npm via OIDC — no tokens required.
 
 ## Reporting issues
 

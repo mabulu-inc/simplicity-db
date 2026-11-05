@@ -20,27 +20,43 @@ Requires Node ≥ 20 and `pg` ≥ 8.
 
 ## Usage
 
-### `connect(prefix?, options?)` — env-driven Pool factory
+### `connect(prefix, options)` — env-driven Pool factory
 
 ```ts
 import connect from '@smplcty/db';
 
 // Reads DATABASE_URL
-const pool = connect();
-
-// Reads REPLICA_DATABASE_URL, falls back to DATABASE_URL
-const replica = connect('REPLICA');
-
-// Any pg.PoolConfig option — e.g. server-side guardrails
-const app = connect(undefined, {
+const pool = connect(undefined, {
   statement_timeout: 30_000,
   idle_in_transaction_session_timeout: 60_000,
+});
+
+// Reads REPLICA_DATABASE_URL, falls back to DATABASE_URL
+const replica = connect('REPLICA', {
+  statement_timeout: 300_000,
+  idle_in_transaction_session_timeout: 300_000,
+});
+```
+
+`statement_timeout` and `idle_in_transaction_session_timeout` are
+required, in milliseconds. Postgres has no limit on either by default,
+so a query whose client has gone away keeps running, and a connection
+left inside a transaction holds back vacuum, for as long as the server
+is up. `0` sends no limit, so the session keeps the role's or
+database's own setting; it has to be written out. A `statement_timeout`
+in the connection string, or a later `SET`, still overrides the pool's
+value. Work that needs longer raises the limit for its own transaction:
+
+```ts
+await withTransaction(pool, async (client) => {
+  await client.query("select set_config('statement_timeout', '600000', true)");
+  // ... the long statement
 });
 ```
 
 If `${PREFIX}_DATABASE_URL` is unset, it falls through to
-`DATABASE_URL`. `options` are merged over the resolved
-`connectionString`, so you can also override it (see
+`DATABASE_URL`. Any other `pg.PoolConfig` option is merged over the
+resolved `connectionString`, so you can also override it (see
 `resolveDatabaseUrl`). No `.env` loading — do that at the edge of
 your application.
 
@@ -63,6 +79,7 @@ const pool = connect(undefined, {
   // dbname from the secret JSON, or pass a fixed one:
   connectionString: resolveDatabaseUrl('DATABASE_URL', 'DB_SECRET', { dbname: 'salez1' }),
   statement_timeout: 30_000,
+  idle_in_transaction_session_timeout: 60_000,
 });
 ```
 
@@ -71,7 +88,7 @@ const pool = connect(undefined, {
 ```ts
 import connect, { withClient } from '@smplcty/db';
 
-const pool = connect();
+const pool = connect(undefined, { statement_timeout: 30_000, idle_in_transaction_session_timeout: 60_000 });
 
 const rows = await withClient(pool, async (client) => {
   const { rows } = await client.query('select 1 as n');
@@ -91,7 +108,7 @@ destroyed rather than reused.
 ```ts
 import connect, { withTransaction } from '@smplcty/db';
 
-const pool = connect();
+const pool = connect(undefined, { statement_timeout: 30_000, idle_in_transaction_session_timeout: 60_000 });
 
 await withTransaction(pool, async (client) => {
   // Set session/tenant GUCs here — withTransaction stays RLS-agnostic.

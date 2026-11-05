@@ -13,7 +13,7 @@ it — even if the callback throws. Returns whatever the callback returns.
 ```ts
 import connect, { withClient } from '@smplcty/db';
 
-const pool = connect();
+const pool = connect(undefined, { statement_timeout: 30_000, idle_in_transaction_session_timeout: 60_000 });
 
 const rows = await withClient(pool, async (client) => {
   const { rows } = await client.query('select 1 as n');

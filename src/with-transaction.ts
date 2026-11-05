@@ -21,7 +21,7 @@ import type { Pool, PoolClient } from 'pg';
  * ```ts
  * import connect, { withTransaction } from '@smplcty/db';
  *
- * const pool = connect();
+ * const pool = connect(undefined, { statement_timeout: 30_000, idle_in_transaction_session_timeout: 60_000 });
  *
  * await withTransaction(pool, async (client) => {
  *   await client.query("select set_config('app.tenant_id', $1, true)", [id]);
