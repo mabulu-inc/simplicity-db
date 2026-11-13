@@ -235,3 +235,61 @@ describe('upsertMutation — derived FK column + input-only source', () => {
     expect(reread.rows[0]?.code).toBe('lb');
   });
 });
+
+describe('upsertMutation — guard', () => {
+  const GUARDED = `${SCHEMA}.versioned`;
+  const guarded = upsertMutation(
+    GUARDED,
+    [
+      ['id', 'int', true],
+      ['name', 'text'],
+      ['version', 'int'],
+    ],
+    { bulk: true, guard: 'o.version <= n.version' },
+  );
+
+  beforeAll(async () => {
+    await pool.query(`
+      CREATE TABLE ${GUARDED} (
+        id         int primary key,
+        name       text not null,
+        version    int not null,
+        updated_at timestamptz not null default now()
+      )
+    `);
+  });
+
+  beforeEach(async () => {
+    await pool.query(`TRUNCATE ${GUARDED}`);
+  });
+
+  const write = async (rows: unknown[]) => {
+    const json = JSON.stringify(rows);
+    await pool.query(guarded.update, [json]);
+    await pool.query(guarded.insert, [json]);
+  };
+  const stored = async () => (await pool.query(`select id, name, version, updated_at from ${GUARDED} order by id`)).rows;
+
+  it('leaves a row alone, timestamp included, when the guard rejects the incoming record', async () => {
+    await write([{ id: 1, name: 'newer', version: 5 }]);
+    const before = await stored();
+
+    await write([{ id: 1, name: 'older', version: 4 }]);
+
+    expect(await stored()).toEqual(before);
+  });
+
+  it('updates a row the guard accepts', async () => {
+    await write([{ id: 1, name: 'older', version: 4 }]);
+
+    await write([{ id: 1, name: 'newer', version: 5 }]);
+
+    expect((await stored()).map((r) => [r.name, r.version])).toEqual([['newer', 5]]);
+  });
+
+  it('inserts a new key whatever the guard says', async () => {
+    await write([{ id: 2, name: 'first', version: 0 }]);
+
+    expect((await stored()).map((r) => r.id)).toEqual([2]);
+  });
+});

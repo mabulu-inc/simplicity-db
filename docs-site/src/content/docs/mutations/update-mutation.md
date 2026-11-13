@@ -54,6 +54,7 @@ object:
 | `updated: 'modified_at'` | name of the auto-updated timestamp column (default `'updated_at'`) |
 | `updated: false` | write **no** timestamp — for tables that don't have one |
 | `bulk: true` | read `$1` as a `jsonb_to_recordset` so one statement updates many rows |
+| `guard: 'o.version <= n.version'` | an SQL predicate the stored row (`o`) must also satisfy, against the incoming record (`n`), to be updated; a rejected row is left untouched, timestamp included |
 
 ```ts
 updateMutation('events', fieldset, { updated: false, bulk: true });

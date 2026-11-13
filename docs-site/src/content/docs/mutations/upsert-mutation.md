@@ -79,3 +79,6 @@ as `updateMutation` — `{ bulk: true }` drives both halves from a single
 `jsonb_to_recordset` (one round-trip each), and per-field `valueExpr`s
 apply to both the UPDATE `SET` and the INSERT `SELECT`. `upsertMutation`
 additionally reads `{ onConflict: 'DO NOTHING' }` (see above).
+
+A `guard` applies to the `update` half only: a genuinely new key is
+inserted whatever the guard says.

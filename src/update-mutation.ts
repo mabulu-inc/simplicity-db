@@ -69,12 +69,18 @@ export interface ScalarSpec {
  * - `onConflict` — when `'DO NOTHING'`, append `on conflict do nothing` to
  *   the generated INSERT as a race backstop on top of `WHERE NOT EXISTS`.
  *   Default omitted (no `ON CONFLICT`). Has no effect on `updateMutation`.
+ * - `guard` — an SQL predicate a stored row must also satisfy to be
+ *   updated, reading the stored row as `o` and the incoming record as `n`
+ *   (e.g. `'o.version <= n.version'`). A rejected row is left untouched,
+ *   timestamp included. It never affects the INSERT. Like `valueExpr`, it
+ *   must be a constant in the caller, never built from input.
  */
 export interface MutationOptions {
   updated?: string | false;
   bulk?: boolean;
   scalars?: Record<string, ScalarSpec>;
   onConflict?: 'DO NOTHING';
+  guard?: string;
 }
 
 interface ResolvedScalar {
@@ -211,6 +217,8 @@ export function updateMutation(
       .map((s) => `o.${s.col} IS DISTINCT FROM ${s.ref}`),
   ].join(`\n    OR `);
 
+  const guard = typeof updated === 'object' && updated.guard ? `\n  AND (${updated.guard})` : '';
+
   return `
 UPDATE ${table} o
 SET${setClauses}${timestampClause}
@@ -219,7 +227,7 @@ FROM ${source}($1) AS n(${recordTypesOf(fieldset)}
   ${keyMatchesOf(fieldset, scalars, '  ')}
   AND (
     ${distinctChecks}
-  )
+  )${guard}
 RETURNING *`;
 }
 

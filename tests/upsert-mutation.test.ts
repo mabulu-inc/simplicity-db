@@ -174,3 +174,15 @@ describe('upsertMutation', () => {
     });
   });
 });
+
+describe('upsertMutation — guard', () => {
+  const fields = [['id', 'int', true], ['name', 'text']] as const;
+
+  it('generates exactly the same statements when no guard is given', () => {
+    expect(upsertMutation('t', fields, { bulk: true, guard: undefined })).toEqual(upsertMutation('t', fields, { bulk: true }));
+  });
+
+  it('leaves the INSERT unchanged by a guard', () => {
+    expect(upsertMutation('t', fields, { guard: 'o.x <= n.x' }).insert).toEqual(upsertMutation('t', fields).insert);
+  });
+});

@@ -4,6 +4,15 @@ All notable changes to this project will be documented in this file.
 
 ## [Unreleased]
 
+### Added
+
+- **`upsertMutation` and `updateMutation` take a `guard`.** An SQL predicate
+  the stored row must also satisfy to be updated, reading the stored row as
+  `o` and the incoming record as `n` — for example `'o.version <= n.version'`
+  to never let an older copy overwrite a newer one. A row the guard rejects is
+  left untouched, `updated_at` included; the INSERT of a genuinely new key is
+  unaffected. Without `guard`, the generated SQL is unchanged.
+
 ## [5.0.0] - 2026-11-05
 
 ### Changed

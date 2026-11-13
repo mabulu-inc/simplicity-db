@@ -226,6 +226,20 @@ const { insert } = upsertMutation('tares', fieldset, {
 // insert ends with: … WHERE NOT EXISTS (…) ON CONFLICT DO NOTHING RETURNING *
 ```
 
+To refuse an update even when the incoming record differs, pass a `guard`:
+an SQL predicate the stored row must also satisfy, reading the stored row as
+`o` and the incoming record as `n`. A rejected row is left untouched,
+`updated_at` included, and the guard never affects the `insert` half. Like a
+`valueExpr`, it must be a constant in your code, never built from input.
+
+```ts
+// Never let an older copy overwrite a newer one.
+const { update, insert } = upsertMutation('readings', fieldset, {
+  bulk: true,
+  guard: 'o.version <= n.version',
+});
+```
+
 ### `classifyPgError(err)` — structured error classification
 
 Returns a **copy-free** `{ code, category, httpStatus, constraint?,
